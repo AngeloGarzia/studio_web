@@ -35,6 +35,14 @@ api.use(optionalAuth);
 api.use(logAccess);
 api.get("/health", (_req, res) => res.json({ ok: true }));
 
+/** Route param Express (`string | string[]`) → `string` pour Prisma / logique métier. */
+function routeParam(req: express.Request, key: string): string {
+  const v = req.params[key];
+  if (typeof v === "string") return v;
+  if (Array.isArray(v)) return v[0] ?? "";
+  return "";
+}
+
 /** Clé yyyy-mm-dd en UTC pour les séjours (alignée sur Booking / DayConfig). */
 function bookingNightKeyUtc(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -501,7 +509,7 @@ api.post("/public/booking-pricing-preview", async (req, res) => {
 });
 
 api.get("/public/media/:id", async (req, res) => {
-  const media = await prisma.portfolioMedia.findUnique({ where: { id: req.params.id } });
+  const media = await prisma.portfolioMedia.findUnique({ where: { id: routeParam(req, "id") } });
   if (!media || !media.isPublished) return res.status(404).end();
 
   try {
@@ -670,13 +678,13 @@ api.get("/admin/bookings", requireAdmin, async (_req, res) => {
 api.post("/admin/bookings/:id/status", requireAdmin, async (req, res) => {
   const Body = z.object({ status: z.enum(["PENDING", "CONFIRMED", "CANCELLED"]) });
   const { status } = Body.parse(req.body);
-  const booking = await prisma.booking.update({ where: { id: req.params.id }, data: { status } });
+  const booking = await prisma.booking.update({ where: { id: routeParam(req, "id") }, data: { status } });
   return res.json(booking);
 });
 
 api.get("/admin/bookings/:id", requireAdmin, async (req, res) => {
   const booking = await prisma.booking.findUnique({
-    where: { id: req.params.id },
+    where: { id: routeParam(req, "id") },
     include: { user: { select: { id: true, email: true, profileName: true, phone: true } } }
   });
   if (!booking) return res.status(404).json({ error: "NOT_FOUND" });
@@ -745,7 +753,7 @@ api.patch("/admin/stay-promo-rules/:id", requireAdmin, async (req, res) => {
   });
   const data = Body.parse(req.body);
 
-  const existing = await prisma.stayPromoRule.findUnique({ where: { id: req.params.id } });
+  const existing = await prisma.stayPromoRule.findUnique({ where: { id: routeParam(req, "id") } });
   if (!existing) return res.status(404).json({ error: "NOT_FOUND" });
 
   const nextFrom = data.validFrom != null ? new Date(`${data.validFrom}T00:00:00.000Z`) : existing.validFrom;
@@ -754,7 +762,7 @@ api.patch("/admin/stay-promo-rules/:id", requireAdmin, async (req, res) => {
   if (nextTo < nextFrom) return res.status(400).json({ error: "INVALID_RANGE" });
 
   const updated = await prisma.stayPromoRule.update({
-    where: { id: req.params.id },
+    where: { id: routeParam(req, "id") },
     data: {
       ...(data.validFrom != null ? { validFrom: nextFrom } : {}),
       ...(data.validToInclusive != null ? { validToInclusive: nextTo } : {}),
@@ -769,7 +777,7 @@ api.patch("/admin/stay-promo-rules/:id", requireAdmin, async (req, res) => {
 
 api.delete("/admin/stay-promo-rules/:id", requireAdmin, async (req, res) => {
   try {
-    await prisma.stayPromoRule.delete({ where: { id: req.params.id } });
+    await prisma.stayPromoRule.delete({ where: { id: routeParam(req, "id") } });
   } catch {
     return res.status(404).json({ error: "NOT_FOUND" });
   }
@@ -787,7 +795,7 @@ api.post("/admin/blocks", requireAdmin, async (req, res) => {
 });
 
 api.delete("/admin/blocks/:id", requireAdmin, async (req, res) => {
-  await prisma.calendarBlock.delete({ where: { id: req.params.id } });
+  await prisma.calendarBlock.delete({ where: { id: routeParam(req, "id") } });
   return res.json({ ok: true });
 });
 
@@ -970,7 +978,7 @@ async function streamToBuffer(body: any): Promise<Buffer> {
 }
 
 api.post("/admin/portfolio/:id/thumbnail", requireAdmin, async (req, res) => {
-  const media = await prisma.portfolioMedia.findUnique({ where: { id: req.params.id } });
+  const media = await prisma.portfolioMedia.findUnique({ where: { id: routeParam(req, "id") } });
   if (!media) return res.status(404).json({ error: "NOT_FOUND" });
   if (media.type !== "image") return res.status(400).json({ error: "NOT_AN_IMAGE" });
 
@@ -1032,14 +1040,14 @@ api.patch("/admin/portfolio/:id", requireAdmin, async (req, res) => {
     isPublished: z.boolean().optional()
   });
   const data = Body.parse(req.body);
-  const updated = await prisma.portfolioMedia.update({ where: { id: req.params.id }, data });
+  const updated = await prisma.portfolioMedia.update({ where: { id: routeParam(req, "id") }, data });
   return res.json(updated);
 });
 
 api.delete("/admin/portfolio/:id", requireAdmin, async (req, res) => {
-  const media = await prisma.portfolioMedia.findUnique({ where: { id: req.params.id } });
+  const media = await prisma.portfolioMedia.findUnique({ where: { id: routeParam(req, "id") } });
   if (media) {
-    await prisma.portfolioMedia.delete({ where: { id: req.params.id } });
+    await prisma.portfolioMedia.delete({ where: { id: routeParam(req, "id") } });
     await deleteObject(media.s3Key).catch(() => {});
     if (media.thumbS3Key) await deleteObject(media.thumbS3Key).catch(() => {});
   }
@@ -1080,7 +1088,7 @@ api.patch("/admin/ancillary-fees/:id", requireAdmin, async (req, res) => {
     sortOrder: z.coerce.number().int().optional()
   });
   const data = Body.parse(req.body);
-  const id = String(req.params.id);
+  const id = routeParam(req, "id");
   const existing = await prisma.ancillaryFee.findUnique({ where: { id } });
   if (!existing) return res.status(404).json({ error: "NOT_FOUND" });
   const row = await prisma.ancillaryFee.update({
@@ -1096,7 +1104,7 @@ api.patch("/admin/ancillary-fees/:id", requireAdmin, async (req, res) => {
 });
 
 api.delete("/admin/ancillary-fees/:id", requireAdmin, async (req, res) => {
-  const id = String(req.params.id);
+  const id = routeParam(req, "id");
   const ex = await prisma.ancillaryFee.findUnique({ where: { id } });
   if (!ex) return res.status(404).json({ error: "NOT_FOUND" });
   await prisma.ancillaryFee.delete({ where: { id } });
@@ -1199,7 +1207,7 @@ api.get("/chat/admin-unread", requireAdmin, async (_req, res) => {
 });
 
 api.get("/chat/messages/:conversationId", requireAuth, async (req: AuthedRequest, res) => {
-  const conversationId = String(req.params.conversationId);
+  const conversationId = routeParam(req, "conversationId");
   const role = req.auth!.role;
 
   if (role === "CLIENT") {
@@ -1231,7 +1239,7 @@ api.get("/chat/messages/:conversationId", requireAuth, async (req: AuthedRequest
 api.post("/chat/messages/:conversationId", requireAuth, async (req: AuthedRequest, res) => {
   const Body = z.object({ body: z.string().min(1).max(4000) });
   const { body } = Body.parse(req.body);
-  const conversationId = String(req.params.conversationId);
+  const conversationId = routeParam(req, "conversationId");
   const role = req.auth!.role;
 
   if (role === "CLIENT") {
