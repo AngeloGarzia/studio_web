@@ -1,0 +1,117 @@
+html, body{
+background-color: rgb(240,240,240);
+width: 100%;
+height: 100%;
+display: flex;
+justify-content: center;
+align-items: center;
+}
+
+
+
+
+
+#cld{
+
+    width: 60%;
+    height: 80%;
+    background-color: rgb(118,118,118);
+    box-shadow: 0 0 10px rgb(0,0,0.3);
+
+}
+#entetecld{
+
+    width: 100%;
+    height: 18%;
+    background-color: rgb(119, 12, 12);
+    display: flex;
+    flex-direction: column;
+}
+
+#cldT{
+
+    width: 100%;
+    height: 66.66%;
+    color: white;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    }
+#avantapres{
+    width: 100%;
+    height: 33.33%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgb(60,60,60);
+
+}
+
+.cldbtn{
+width: 40%;
+height: 100%;
+border:none;
+background-color: rgb(81, 79, 214) ;
+color: white;
+outline: none;
+transition: 0.2s;
+}
+
+.cldbtn:hover {
+
+    background-color: rgb(114, 142, 219);
+}
+
+#cldboite{
+    width: 100%;
+    height: 82%;
+    background-color: rgb(143,143,143);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#jours{
+    width: 100%;
+    height: 10%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.jour{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    margin: 0;
+    font-size: 18px;
+
+
+}
+.semaine{
+    width: 100%;
+    height: 15%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.case{
+width: 100%;
+height: 100%;
+display: flex;
+justify-content: center;
+align-items: center;
+transition: 0.3s;
+color: rgb(165, 14, 14);
+font-size: 18px;
+
+
+}
+.case:hover{
+    background-color: rgb(150, 0, 7);
+}

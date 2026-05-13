@@ -1,0 +1,14 @@
+{
+  "name": "studio-des-grenadiers",
+  "private": true,
+  "workspaces": ["frontend/*", "backend/*"],
+  "scripts": {
+    "dev": "concurrently -n API,WEB -c blue,green \"npm run dev -w @sdg/api\" \"npm run dev -w @sdg/web\"",
+    "dev:api": "npm run dev -w @sdg/api",
+    "dev:web": "npm run dev -w @sdg/web",
+    "build": "npm run build -w @sdg/api && npm run build -w @sdg/web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

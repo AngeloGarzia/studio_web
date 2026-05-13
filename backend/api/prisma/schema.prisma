@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  CLIENT
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(CLIENT)
+
+  profileName  String?
+  phone        String?
+
+  bookings     Booking[]
+  messages     Message[]
+  conversation Conversation?
+}
+
+model Booking {
+  id          String        @id @default(cuid())
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  startDate   DateTime
+  endDate     DateTime
+  status      BookingStatus @default(PENDING)
+
+  notes       String?
+  equipment   String?       // demande d'info équipement / besoins
+
+  /** Frais annexes (ménage, etc.) : total + détail figé au moment de la demande. */
+  ancillaryTotalCents Int   @default(0)
+  ancillarySnapshot   Json?
+
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+}
+
+/** Frais annexes configurables par l’admin (ajoutés à chaque demande de réservation). */
+model AncillaryFee {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  label      String
+  priceCents Int
+  sortOrder  Int      @default(0)
+  active     Boolean  @default(true)
+}
+
+model CalendarBlock {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  startDate DateTime
+  endDate   DateTime
+  reason    String?
+}
+
+model DayConfig {
+  id               String   @id @default(cuid())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  date             DateTime @unique
+  priceCents       Int
+  arrivalAllowed   Boolean  @default(true)
+  departureAllowed Boolean  @default(true)
+  promoPercent     Int?     // 0..100
+  promoLabel       String?
+}
+
+/** Promo « durée de séjour » : % sur le total après promos jour, si toutes les nuits tombent dans [validFrom, validToInclusive] et durée ≥ minStayNights. */
+model StayPromoRule {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  validFrom          DateTime
+  validToInclusive   DateTime
+  minStayNights      Int
+  promoPercent       Int // 1..100
+  label              String?
+  active             Boolean  @default(true)
+}
+
+model PortfolioMedia {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  title       String?
+  type        String   // "image" | "video"
+  s3Key       String
+  thumbS3Key  String?
+  publicUrl   String?
+  order       Int      @default(0)
+  isPublished Boolean  @default(true)
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 1 conversation par client (MVP)
+  clientId  String   @unique
+  client    User     @relation(fields: [clientId], references: [id])
+
+  messages  Message[]
+}
+
+model Message {
+  id             String        @id @default(cuid())
+  createdAt      DateTime      @default(now())
+
+  conversationId String
+  conversation   Conversation  @relation(fields: [conversationId], references: [id])
+
+  senderId       String
+  sender         User          @relation(fields: [senderId], references: [id])
+
+  body           String
+  readByAdminAt  DateTime?
+  readByClientAt DateTime?
+}
+
+model SiteSettings {
+  id                    String   @id @default(cuid())
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  studioName            String   @default("Studio des Grenadiers")
+  /** Nom affiché du propriétaire (infos pratiques publiques). */
+  ownerName             String?
+  address               String?
+  phone                 String?
+  publicEmail           String?
+
+  // Lodging / property information
+  lodgingType           String?  // e.g. "Studio", "Appartement", "Maison", ...
+  surfaceM2             Int?
+  equipments            String[] // unlimited list of amenities/equipment
+
+  minNights             Int      @default(1)
+  checkInTime           String?  // "15:00"
+  checkOutTime          String?  // "11:00"
+
+  // Social / external links (flexible structure)
+  socialLinks           Json?
+
+  bookingAutoConfirm    Boolean  @default(false)
+  maintenanceMode       Boolean  @default(false)
+}
+
+model AccessLog {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+
+  ip           String?
+  forwardedFor String?
+  method       String
+  path         String
+  userAgent    String?
+  referer      String?
+
+  userId       String?
+  userRole     String?
+}
+

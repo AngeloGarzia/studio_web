@@ -1,0 +1,316 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply text-slate-900;
+    overflow-x: clip;
+  }
+
+  body {
+    margin: 0;
+    padding-left: env(safe-area-inset-left, 0);
+    padding-right: env(safe-area-inset-right, 0);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+}
+
+@layer components {
+  .sdg-bg {
+    /* Background images (Balaruc) + overlay soleil/eau */
+    min-height: 100vh;
+    min-height: 100dvh;
+    background-image:
+      radial-gradient(1200px circle at 10% 10%, rgba(255, 209, 102, 0.30), rgba(255,255,255,0) 45%),
+      radial-gradient(900px circle at 85% 25%, rgba(34, 211, 238, 0.26), rgba(255,255,255,0) 50%),
+      linear-gradient(135deg, rgba(236, 254, 255, 0.55) 0%, rgba(255, 248, 232, 0.55) 55%, rgba(224, 251, 255, 0.55) 100%),
+      url("/balaruc1.png");
+    background-size: cover, cover, cover, cover;
+    background-position: center, center, center, center;
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
+    /* scroll on small screens: fixed attachments are flaky on iOS and hurt perf */
+    background-attachment: scroll, scroll, scroll, scroll;
+    background-blend-mode: normal, normal, normal, multiply;
+  }
+
+  @media (min-width: 768px) {
+    .sdg-bg {
+      background-attachment: fixed, fixed, fixed, fixed;
+    }
+  }
+
+  .sdg-container {
+    @apply mx-auto w-full max-w-6xl px-4;
+  }
+
+  .sdg-card {
+    @apply rounded-2xl border border-white/40 bg-white/70 shadow-xl shadow-water-900/10 backdrop-blur;
+  }
+
+  .sdg-btn {
+    @apply inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition;
+  }
+  .sdg-btn-primary {
+    @apply sdg-btn bg-water-600 text-white hover:bg-water-700;
+  }
+  .sdg-btn-soft {
+    @apply sdg-btn bg-white/70 hover:bg-white;
+  }
+  .sdg-btn-danger {
+    @apply sdg-btn bg-rose-600 text-white hover:bg-rose-700;
+  }
+
+  .sdg-input {
+    @apply w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm outline-none ring-0 placeholder:text-slate-400 focus:border-water-400 focus:ring-4 focus:ring-water-200/50;
+  }
+
+  .sdg-label {
+    @apply mb-1 block text-sm font-semibold text-slate-700;
+  }
+
+  .sdg-title {
+    @apply text-balance text-center text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl;
+  }
+
+  .sdg-title-elegant {
+    /* Sobriété + élégance (serif + moins agressif) */
+    @apply font-serif font-bold text-slate-800 tracking-tight;
+    text-shadow: 0 1px 10px rgba(2, 6, 23, 0.12);
+  }
+
+  .sdg-subtitle {
+    @apply text-center text-sm text-slate-600 md:text-base;
+  }
+
+  .sdg-subtitle-hero {
+    @apply text-center text-base font-semibold text-water-900 md:text-lg;
+    text-shadow: 0 1px 2px rgba(15, 23, 42, 0.25);
+  }
+
+  /** Titre bloc promos accueil : bleu clair uni + clignotement d’opacité */
+  @keyframes sdg-promo-title-blink {
+    0%,
+    100% {
+      opacity: 0.45;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  .sdg-promo-hero-title {
+    @apply font-extrabold tracking-tight;
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+    text-align: center;
+    color: rgb(125 211 252); /* sky-300 — bleu clair */
+    text-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+    animation: sdg-promo-title-blink 1.25s ease-in-out infinite;
+  }
+
+  @media (min-width: 768px) {
+    .sdg-promo-hero-title {
+      font-size: 1.25rem;
+      line-height: 1.85rem;
+    }
+  }
+
+  /** Sous-encart promos : orange clair + léger clignotement */
+  @keyframes sdg-promo-orange-hint-blink {
+    0%,
+    100% {
+      opacity: 0.72;
+      box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.25);
+    }
+    50% {
+      opacity: 1;
+      box-shadow: 0 0 14px 2px rgba(251, 146, 60, 0.35);
+    }
+  }
+
+  .sdg-promo-reduction-hint {
+    margin-top: 1rem;
+    border-radius: 0.875rem;
+    border: 1px solid rgba(254, 215, 170, 0.95); /* orange-200 */
+    background: rgba(255, 247, 237, 0.98); /* orange-50 */
+    padding: 0.625rem 0.875rem;
+    text-align: center;
+    font-size: 0.875rem;
+    line-height: 1.45;
+    font-weight: 600;
+    color: rgb(249 115 22); /* orange-500 — orange plutôt clair */
+    animation: sdg-promo-orange-hint-blink 1.35s ease-in-out infinite;
+  }
+
+  @media (min-width: 768px) {
+    .sdg-promo-reduction-hint {
+      font-size: 0.9375rem;
+      padding: 0.75rem 1rem;
+    }
+  }
+}
+
+@layer components {
+  /* FullCalendar polish (keeps the lib functional, makes it match the theme) */
+  .fc {
+    @apply rounded-2xl bg-white/70 p-2 shadow-sm backdrop-blur;
+  }
+
+  .fc .fc-header-toolbar {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+    column-gap: 0.5rem;
+  }
+
+  .fc .fc-toolbar-chunk {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .fc .fc-toolbar-title {
+    @apply text-base font-extrabold tracking-tight text-slate-900 md:text-lg;
+  }
+  .fc .fc-button {
+    @apply rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-semibold text-slate-800 shadow-none hover:bg-white;
+  }
+  .fc .fc-button-primary:not(:disabled).fc-button-active,
+  .fc .fc-button-primary:not(:disabled):active {
+    @apply bg-water-600 text-white;
+  }
+  .fc .fc-daygrid-day-number {
+    @apply text-xs font-semibold text-slate-700;
+  }
+
+  /* Selected range highlight: light blue */
+  .fc .fc-highlight,
+  .fc .fc-highlight-skeleton td,
+  .fc .fc-daygrid-body .fc-highlight-skeleton td,
+  .fc .fc-daygrid-day-bg .fc-highlight {
+    background: rgba(56, 189, 248, 0.25) !important; /* sky-400-ish */
+  }
+  /* When background events exist (reserved/blocked), keep selection visible */
+  .fc .fc-daygrid-day-bg .fc-highlight {
+    z-index: 5;
+  }
+  .fc .fc-daygrid-day-bg .fc-bg-event {
+    z-index: 2;
+  }
+  /* Some views mark selected days directly — même pastel pour l’accueil et admin (.sdg-cal-picked-day) */
+  .fc td.fc-daygrid-day.fc-day-selected,
+  .fc td.fc-daygrid-day.fc-day-today.fc-day-selected,
+  .fc td.fc-daygrid-day.sdg-cal-picked-day,
+  .fc td.fc-daygrid-day.fc-day-today.sdg-cal-picked-day {
+    background: rgba(56, 189, 248, 0.18) !important;
+  }
+  .fc td.fc-daygrid-day.fc-day-selected .fc-daygrid-day-frame,
+  .fc td.fc-daygrid-day.sdg-cal-picked-day .fc-daygrid-day-frame {
+    background: rgba(56, 189, 248, 0.12) !important;
+  }
+
+  /* Past days: grey + struck-through day number */
+  .fc td.sdg-past-day {
+    @apply bg-slate-100/70 text-slate-400;
+  }
+  .fc td.sdg-past-day .fc-daygrid-day-number {
+    @apply text-slate-400;
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+  }
+  .fc td.sdg-past-day .fc-daygrid-day-frame {
+    opacity: 0.65;
+  }
+
+  /* Accueil : pas de clic sur jour sans tarif affiché */
+  .fc td.sdg-home-no-price {
+    cursor: not-allowed;
+  }
+  .fc td.sdg-home-no-price .fc-daygrid-day-frame {
+    pointer-events: none;
+    opacity: 0.58;
+    user-select: none;
+  }
+
+
+  /* Admin blocked days: red */
+  .fc .sdg-block-bg,
+  .fc .sdg-block-bg.fc-bg-event,
+  .fc .fc-bg-event.sdg-block-bg,
+  .fc .fc-event.sdg-block-bg {
+    background-image: none !important;
+    background: rgba(225, 29, 72, 0.40) !important; /* rose-600-ish */
+    background-color: rgba(225, 29, 72, 0.40) !important;
+    opacity: 1 !important;
+    z-index: 3 !important;
+  }
+
+  /* Reliable blocked-day paint (cell-level) */
+  .fc td.sdg-blocked-day,
+  .fc td.sdg-blocked-day .fc-daygrid-day-frame {
+    background: rgba(225, 29, 72, 0.28) !important;
+  }
+
+  /* Accueil visiteur : indisponible (blocage ou réservation) = même teinte que les blocs */
+  .sdg-home-calendar .fc .sdg-home-unavail-bg,
+  .sdg-home-calendar .fc .sdg-home-unavail-bg.fc-bg-event,
+  .sdg-home-calendar .fc .fc-bg-event.sdg-home-unavail-bg,
+  .sdg-home-calendar .fc .fc-event.sdg-home-unavail-bg {
+    background-image: none !important;
+    background: rgba(225, 29, 72, 0.4) !important;
+    background-color: rgba(225, 29, 72, 0.4) !important;
+    opacity: 1 !important;
+    z-index: 3 !important;
+  }
+
+  .sdg-home-calendar .fc td.sdg-booked-day,
+  .sdg-home-calendar .fc td.sdg-booked-day .fc-daygrid-day-frame,
+  .sdg-home-calendar .fc td.sdg-booked-day-pending,
+  .sdg-home-calendar .fc td.sdg-booked-day-pending .fc-daygrid-day-frame {
+    background: rgba(225, 29, 72, 0.28) !important;
+  }
+
+  /* Accueil : jour borne du départ (nuit indispo mais départ sans dormir ce jour) */
+  .sdg-home-calendar .fc td.sdg-home-checkout-boundary-day {
+    cursor: pointer !important;
+  }
+  .sdg-home-calendar .fc td.sdg-home-checkout-boundary-day .fc-daygrid-day-frame {
+    box-shadow: inset 0 0 0 2px rgba(5, 150, 105, 0.88) !important;
+    cursor: pointer !important;
+  }
+
+  /* Admin booked days (confirmed): pink */
+  .fc td.sdg-booked-day,
+  .fc td.sdg-booked-day .fc-daygrid-day-frame {
+    background: rgba(236, 72, 153, 0.22) !important; /* pink-500-ish */
+  }
+  /* Admin booked days (pending): soft amber */
+  .fc td.sdg-booked-day-pending,
+  .fc td.sdg-booked-day-pending .fc-daygrid-day-frame {
+    background: rgba(251, 191, 36, 0.18) !important; /* amber-400-ish */
+  }
+
+  /* Sélection multi-jours admin : retrouve le même pastel après les fonds résa/bloc (les règles ci-dessus sont plus précises sur le même <td>) */
+  .fc td.fc-daygrid-day.sdg-cal-picked-day,
+  .fc td.fc-daygrid-day.fc-day-today.sdg-cal-picked-day {
+    background: rgba(56, 189, 248, 0.18) !important;
+  }
+  .fc td.fc-daygrid-day.sdg-cal-picked-day .fc-daygrid-day-frame {
+    background: rgba(56, 189, 248, 0.12) !important;
+  }
+
+  /* Admin : alerte nouvelle demande sur le bouton menu */
+  .sdg-burger-attention-blink {
+    animation: sdg-burger-attention-blink 0.95s ease-in-out infinite;
+  }
+}
+
+@keyframes sdg-burger-attention-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+

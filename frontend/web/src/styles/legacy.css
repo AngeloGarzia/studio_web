@@ -1,0 +1,105 @@
+:root {
+  --sdg-bg: #94aeb6;
+  --sdg-primary: #1919cf;
+  --sdg-accent: #770c0c;
+}
+
+/* reprise légère des classes existantes */
+.fond_ecran {
+  background: radial-gradient(circle at 10% 10%, rgba(148, 174, 182, 0.95), rgba(0, 0, 70, 0.95));
+  background-attachment: fixed;
+}
+
+.titre_page {
+  color: brown;
+  background: linear-gradient(to left, #94aeb6, #1919cf);
+  border-radius: 10px;
+  font-size: 44px;
+  text-align: center;
+  margin: 20px auto 10px;
+  padding: 16px 20px;
+  max-width: 980px;
+  word-break: break-word;
+}
+
+.Texte_block {
+  color: black;
+  font-size: 18px;
+  background-color: aquamarine;
+  box-shadow: 8px 8px 50px 0px rgb(0, 0, 0);
+  text-align: justify;
+  padding: 20px;
+  margin: 12px auto;
+  max-width: 980px;
+}
+
+.sdg-card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.sdg-hero {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px 16px 40px;
+}
+
+.sdg-calendar-wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 16px 40px;
+}
+
+.fc {
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.fc .fc-toolbar-title {
+  font-size: 20px;
+}
+
+/* Mobile-first tweaks */
+@media (max-width: 576px) {
+  .sdg-hero {
+    padding: 18px 12px 24px;
+  }
+
+  .sdg-calendar-wrap {
+    padding: 0 12px 24px;
+  }
+
+  .titre_page {
+    font-size: 28px;
+    padding: 12px 14px;
+    margin: 14px auto 10px;
+  }
+
+  .Texte_block {
+    font-size: 16px;
+    padding: 14px;
+  }
+
+  .fc {
+    padding: 6px;
+  }
+
+  /* FullCalendar toolbar becomes multi-line */
+  .fc .fc-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .fc .fc-toolbar-title {
+    font-size: 16px;
+  }
+
+  .fc .fc-button {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+  }
+}
+

@@ -1,0 +1,549 @@
+/* les titre1   seront en de la meme couleur et de la meme taille*/
+body{
+
+/*....... RESET DES MARGES  DANS LE CORPS DE LA PAGE...*/
+    
+    margin: 0px;
+    padding: 0px;
+}
+ /* UTILSATION A 100% DE LA PAGE et FOND GRIS*/
+nav{
+    width: 100%;
+    background-color: #424558;
+  
+} 
+
+
+ /* RESET MARGES DE NOTRE MENU */
+ nav>  ul {
+    margin: 0px;
+    padding: 0px;
+
+}
+/* **RETABLIR LA HAUTEUR DU MENU***  */
+nav > UL::after{
+    content: "";
+    display: block;
+    clear: both;
+}
+
+/* ON MET LES MENU  COTE A COTE */
+nav> ul > li{
+    float: left;
+    position: relative
+}
+nav > ul >li >a{
+    padding: 20px 30px;
+    color: #fff;
+    
+}
+
+
+/* ON ENLEVE LES PUCES DEVANT LES LI  */
+nav li{
+    list-style: none  ;
+}
+
+
+
+/* Ciblage du sous  menu pour rendre invisible ceux-ci  */
+.sub_menu{
+
+    display: none;
+    box-shadow: 0px 1px 2px;
+    background-color: white;
+}
+
+
+  /* Le survaol des liens sera jaune */
+a:hover {
+    background-color: rgb(105, 92, 15);
+  }
+
+
+
+
+nav a{
+    display: inline-block;
+    text-decoration: none;
+    color: black;
+    border-bottom: 2px solid transparent;
+    padding: 10px 0px;
+} 
+
+nav> ul li:hover  .sub_menu{
+    display: inline-block;
+    position: absolute;
+    top: 100%;
+    left: 0px;
+    padding: 0px;
+    z-index: 1000; 
+
+}
+
+.sub_menu li {
+border-bottom: 1 px #CCC;
+}
+
+.sub_menu li a{
+    padding: 15px 30px;
+    font-size: 13px;
+    color: #222538;
+    width: 270px;
+}
+
+.banniere{
+    padding: 5% 10%;
+    padding-left: 20%;
+    padding-right: 20%;
+    
+    background: linear-gradient(to left, #94aeb6, #000046);
+}
+
+.block{
+    color: brown;
+    font-size: 25px;
+    background: linear-gradient(to left, #94aeb6, #1919cf);
+    border-radius: 10px; box-shadow: 3px solid rgb(39, 61, 185)rgb(116, 31, 38) 10px 10px 10px;
+    padding: 20px;
+    margin: 5px 55px 5px;
+}
+
+.Texte_block{
+    color: black;
+    font-size: 20px;
+    background-color: aquamarine; 
+    box-shadow : 8px 8px 50px 0px rgb(0, 0, 0) ;
+    text-align: justify;
+    align-items: center;
+    padding: 20px;
+    margin: 5px 55px 5px ;
+}
+.Texte_formulaire{
+    color: black;
+    font-size: 20px;
+    background-color: aquamarine; 
+    box-shadow : 8px 8px 50px 0px rgb(0, 0, 0) ;
+    text-align: justify;
+    align-items: center;
+    padding: 20px;
+    margin: 50px 55px 5px ;
+}
+
+/* Prprietés des images dans le caroussel */
+.images_caroussel{
+
+    display: flex;
+    animation-duration: 10s;
+    animation-name: Defile_image ;
+    animation-iteration-count: infinite;
+    
+}
+
+
+
+/* Faire defiler les image */
+
+    @keyframes Defile_image {
+        0%  {
+                transform:translate(0);
+            }
+
+        25% {
+                transform: translate(-640px);
+            }
+        
+        50% {
+                transform: translate(-1280px);
+            }
+
+        75% {
+               transform: translate(-1920px);
+            } 
+
+       100% {
+               transform: translate(0);
+            } 
+           
+
+
+
+
+}
+
+
+/* Proprietés du caroussel centré */
+.caroussel_au_centre{
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 50vh;
+
+
+}
+
+
+
+#caroussel{
+    display: flex;
+    width:640px;
+    overflow: hidden;
+    border: 3px solid rgb(39, 61, 185)
+ }
+
+
+
+
+ .conteneur{
+    display:flex;
+    flex-direction: row;
+    justify-content:center;
+    
+    
+
+ }
+
+ .myButton {
+	box-shadow:inset 0px 1px 0px 0px #caefab;
+	background:linear-gradient(to bottom, #77d42a 5%, #5cb811 100%);
+	background-color:#77d42a;
+	border-radius:6px;
+	border:1px solid #268a16;
+	display:inline-block;
+	cursor:pointer;
+	color:#306108;
+	font-family:Arial;
+	font-size:15px;
+	font-weight:bold;
+	padding:6px 24px;
+	text-decoration:none;
+	text-shadow:0px 1px 0px #aade7c;
+}
+.myButton:hover {
+	background:linear-gradient(to bottom, #5cb811 5%, #77d42a 100%);
+	background-color:#5cb811;
+}
+.myButton:active {
+	position:relative;
+	top:1px;
+}
+
+
+.ma_classe {
+    color:black;
+    font-size: 30px;
+    background-color: aquamarine;
+    text-align: center;
+    font: size 32px;
+    
+}
+
+.titre_page{
+color: brown;
+background: linear-gradient(to left, #94aeb6, #1919cf);
+border-radius: 10px;
+box-shadow: 3px solid rgb(39, 61, 185)rgb(116, 31, 38) 10px 10px 10px;
+font-size: 50px;
+text-align: center;
+margin:20px 500px 10px 500px;
+padding: 20px;
+}
+
+.block2 {
+    color: brown;
+    font-size: 25px;
+    background: linear-gradient(to left, #94aeb6, #1919cf);
+    border-radius: 10px; 
+    box-shadow:  3px solid rgb(39, 61, 185)rgb(116, 31, 38) 10px 10px 10px;
+    padding: 20px;
+    margin: 5px 55px 5px;
+}
+
+.bordure_arrondie{
+    background-color: rgb(39, 61, 185);
+    
+    border: 2px dotted rgb(250, 6, 6);
+    border-radius: 50% 50% 50% 50% / 50% 50% 50% 50%;  
+    box-shadow: 10px 10px 10px
+}
+
+.ma_classe2 {
+color :blueviolet; font-style: italic;
+box-shadow: 10px; 
+
+}
+
+/* centré l'image  */
+img {
+    display: flex; 
+    margin: auto;
+}
+
+/* image de fond centré dans la page complete */
+.fond_ecran { 
+background-image: url(plage-hespérides-balaruc-les-bains-2.jpg);
+background-position: center;
+background-attachment: fixed;
+background-size: cover;
+opacity: 1;
+
+}
+
+
+/* on change l'opacité en survolan une image */
+img:hover{
+    opacity: 0.5;
+}
+
+/* le carré bleu opaque a 0.7*/
+.carre {
+    margin: auto;
+    width: 500px;
+    text-align: justify;
+    background-color: rgba(25, 25, 112, 0.7);
+    padding: 20px;
+  }
+  
+  h3 {
+    color: #ff1493;
+ }
+  
+ p {
+    color: #ff1493;
+ }
+
+/* STYLE PROPRE AU CALENDRIER */
+.corps_cld{
+    background-image: url(plage-hespérides-balaruc-les-bains-2.jpg);
+    background-position: center;
+    background-attachment: fixed;
+    background-size: cover;
+    opacity: 1;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    } 
+    
+    
+    
+    
+    
+    #cld{
+    
+        width: 60%;
+        height: 80%;
+        background-color: rgb(118,118,118);
+        box-shadow: 0 0 10px rgb(0,0,0.3);
+    
+    }
+    #entetecld{
+    
+        width: 100%;
+        height: 18%;
+        background-color: rgb(119, 12, 12);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    #cldT{
+    
+        width: 100%;
+        height: 66.66%;
+        color: white;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        }
+    #avantapres{
+        width: 100%;
+        height: 33.33%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: rgb(60,60,60);
+    
+    }
+    
+    .cldbtn{
+    width: 40%;
+    height: 100%;
+    border:none;
+    background-color: rgb(81, 79, 214) ;
+    color: white;
+    outline: none;
+    transition: 0.2s;
+    }
+    
+    .cldbtn:hover {
+    
+        background-color: rgb(114, 142, 219);
+    }
+    
+    #cldboite{
+        width: 100%;
+        height: 82%;
+        background-color: rgb(143,143,143);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    #jours{
+        width: 100%;
+        height: 10%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .jour{
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        margin: 0;
+        font-size: 18px;
+    
+    
+    }
+    .semaine{
+        width: 100%;
+        height: 15%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .case{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: 0.3s;
+    color: rgb(165, 14, 14);
+    font-size: 18px;
+    
+    
+    }
+    .case:hover{
+        background-color: rgb(150, 0, 7);
+    }
+
+
+    /* Css pour le formulaire */
+
+
+    
+.contactez-nous {
+    width: 700px;
+    border: 1px solid;
+    border-radius: 8px;
+    padding: 0 50px 0 50px;
+    background: white;
+    margin: 50px ;
+  }
+  
+  .contactez-nous > h1 {
+    font-weight: 800;
+  }
+  
+  .contactez-nous > p {
+    
+    font-weight: 300;
+    font-size: 20px;
+    color: black;
+  }
+  
+  form div {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 83px;
+    margin-top: 30px;
+    
+  }
+  
+  form div > label {
+    margin-bottom: 7px;
+    font-weight: 600;
+  }
+  
+  form div > input, form div > select, form div > textarea {
+    background: #1919cf;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    font-weight: 500;
+    font-family: Montserrat, "sans-serif";
+    box-shadow: 0px 2px 2px 0px rgba(0,0,0,0.25);
+  }
+  
+  form div > input, form div > select {
+    height: 50px;
+    padding-left: 10px;
+  }
+  
+  form div > select {
+    appearance: none;
+    background-size: 15px;
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZlcnNpb249IjEuMSIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHhtbG5zOnN2Z2pzPSJodHRwOi8vc3ZnanMuY29tL3N2Z2pzIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgeD0iMCIgeT0iMCIgdmlld0JveD0iMCAwIDIxMy4zMzMgMjEzLjMzMyIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgNTEyIDUxMiIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSIgY2xhc3M9IiI+PGc+CjxnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+Cgk8Zz4KCQk8cG9seWdvbiBwb2ludHM9IjAsNTMuMzMzIDEwNi42NjcsMTYwIDIxMy4zMzMsNTMuMzMzICAgIiBmaWxsPSIjMzAzMDMwIiBkYXRhLW9yaWdpbmFsPSIjMDAwMDAwIiBzdHlsZT0iIiBjbGFzcz0iIj48L3BvbHlnb24+Cgk8L2c+CjwvZz4KPGcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPC9nPgo8ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8L2c+CjxnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjwvZz4KPGcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPC9nPgo8ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8L2c+CjxnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjwvZz4KPGcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPC9nPgo8ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8L2c+CjxnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjwvZz4KPGcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPC9nPgo8ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8L2c+CjxnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjwvZz4KPGcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPC9nPgo8ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8L2c+CjxnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjwvZz4KPC9nPjwvc3ZnPg==');
+    background-position: right 10px top 50%;
+    background-repeat: no-repeat;
+  }
+  
+  form div > textarea {
+    height: 195px;
+    padding: 15px 0px 0px 10px;
+  }
+  
+  form div > input::placeholder, form div > textarea::placeholder {
+    color: white;
+  }
+  
+  form div > select:invalid {
+    color: white;
+  }
+  
+  form div > select option {
+    background: white;
+    color: #303030;
+  }
+  
+  form div:last-child {
+    align-items:center;
+    margin-top: 20px;
+  }
+  
+  form button {
+    width: 450px;
+    max-width: 500px;
+    height: 60px;
+    font-weight: 700;
+    font-size: 28px;
+    background: white;
+    border: rgba(48, 48, 48, 0.5) solid 1px;
+    border-radius: 5px;
+    box-shadow: 0px 4px 4px 0px rgba(0,0,0,0.25);
+    color: #303030;
+  }
+  .body_formulaire {
+    background-image: url(plage-hespérides-balaruc-les-bains-2.jpg);
+background-position: center;
+background-attachment: fixed;
+background-size: cover;
+opacity: 1;
+    font-family: Montserrat, "sans-serif";
+    display: flex;
+    justify-content: center;
+    color: #303030;
+
+  } 
+
+  

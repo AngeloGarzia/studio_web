@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+
+
+<!-- titre de la page -->
+    <title>Le studio des Grenadiers </title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1 ">
+    <link rel="stylesheet" href="style.css">
+    <body class="body_formulaire">
+              
+      
+      <!-- initialisation de emailJS      -->
+              <script type="text/javascript"
+              src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js">
+      </script>
+
+      <script type="text/javascript">
+         (function(){
+            emailjs.init({
+              publicKey: "5k0ghf2pcp8FYHwf5",
+            });
+         })();
+      </script>
+      
+ <!-- FIN initialisation de emailJS      -->
+
+      <!-- script js de l'envois -->
+
+    <script> src="./script_email.js" </script>
+
+
+
+
+    <!-- FIN script js de l'envois -->
+
+
+    <div class="contactez-nous">
+      <h1>Contactez-nous</h1>
+      <p>Vous desirez avoir de plas amples information sur le Studio des Grenadiers,<br>
+         Contactez-Nous !</p>
+
+         <br>
+      <form>
+
+      <!-- Declaration des champs de saisie -->
+        <!-- Requierd s'assure que le champs n'est pas vide ,placholder est le texte pas default avant saisie-->
+
+       <div> 
+      <label for="name">Votre nom</label>
+      <input type="text" id="name" name="name" placeholder="Martin" required> 
+      </div>
+
+      <div>
+      <label for="email">Votre e-mail</label>
+      <input type="email" id="email" name="email" placeholder="monadresse@mail.com" required>
+      </div>
+      
+      <div>
+      <label for="subject">Quel est le sujet de votre message ?</label>
+      <select name="subject" id="subject" required>
+      <option value="" disabled selected hidden>Choisissez le sujet de votre message</option>
+      <option value="Date-sejour">Demabder des Dates de sejour</option>
+      <option value="question-studio">Question à propos du studio</option>
+      <option value="suivi-reservation">Suivi de ma Reservation</option>
+      <option value="autre">Autre...</option>
+      </select>
+      </div>
+      
+      <div>
+      <label for="message">Votre message</label>
+      <textarea id="message" name="message" placeholder="Bonjour, je vous contacte car...." required></textarea>
+      </div>
+      
+      <div>
+      <button type="submit" onclick="sendMail">Envoyer mon message</button>
+      </div>
+      </form>
+      </div>
+    
+  
+      
+      
+      
+         </body>
+      
+      </html>
