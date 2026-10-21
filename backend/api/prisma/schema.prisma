@@ -9,6 +9,7 @@ datasource db {
 
 enum UserRole {
   ADMIN
+  OWNER
   CLIENT
 }
 
@@ -16,6 +17,11 @@ enum BookingStatus {
   PENDING
   CONFIRMED
   CANCELLED
+}
+
+enum EstablishmentRentalKind {
+  FURNISHED_TOURISM
+  UNFURNISHED_MONTHLY
 }
 
 model User {
@@ -27,12 +33,239 @@ model User {
   passwordHash String
   role         UserRole @default(CLIENT)
 
+  /** Compte créé via demande anonyme — ne peut pas se connecter tant que non « claim » via /auth/register. */
+  isGuest Boolean @default(false)
+
+  /** Protection brute-force login. */
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
+  /** Lien à usage unique pour choisir son mot de passe après création du compte. */
+  passwordSetupTokenHash String?   @unique
+  passwordSetupExpires   DateTime?
+
   profileName  String?
+  firstName    String?
+  lastName     String?
   phone        String?
+  /** Adresse de résidence principale, saisie à l’ajout d’une réservation. */
+  residenceAddress String?
+
+  /** Établissement ouvert dans l’admin. Les données de l’appli suivent ce choix. */
+  activeEstablishmentId String?
+  activeEstablishment   Establishment? @relation("UserActiveEstablishment", fields: [activeEstablishmentId], references: [id], onDelete: SetNull)
 
   bookings     Booking[]
   messages     Message[]
-  conversation Conversation?
+  conversation Conversation[]
+  memberships  EstablishmentMember[]
+  /** Fiche propriétaire liée à ce compte, s’il en a une. */
+  ownerProfile Owner?
+  /** Fiche locataire liée à ce compte, s’il en a une. */
+  tenantProfile MonthlyTenant?
+}
+
+model Establishment {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name      String
+  /** Texte public. L’accueil anonyme en montre un résumé. */
+  description String @default("")
+  /** Image d’accroche, parmi les photos publiées du logement. */
+  coverMediaId String?         @unique
+  coverMedia   PortfolioMedia? @relation("EstablishmentCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
+  /** Meublé de tourisme, ou logement vide loué au mois. */
+  rentalKind EstablishmentRentalKind @default(FURNISHED_TOURISM)
+  /** Bail mensuel : locataire et loyer repris chaque mois sur la quittance. */
+  tenantName          String?
+  tenantEmail         String?
+  monthlyRentCents    Int     @default(0)
+  monthlyChargesCents Int     @default(0)
+  /** Établissement vu par les visiteurs non connectés en admin. */
+  isDefault Boolean  @default(false)
+
+  members            EstablishmentMember[]
+  activeFor          User[]                 @relation("UserActiveEstablishment")
+  settings           SiteSettings?
+  bookings           Booking[]
+  ancillaryFees      AncillaryFee[]
+  calendarBlocks     CalendarBlock[]
+  dayConfigs         DayConfig[]
+  stayPromoRules     StayPromoRule[]
+  portfolioMedia     PortfolioMedia[]
+  conversations      Conversation[]
+  monthlyTenants     MonthlyTenant[]
+  rentReceipts       RentReceipt[]
+  quittances         Quittance[]
+  /** Au moins un propriétaire. Un propriétaire peut n’être rattaché à aucun établissement. */
+  owners             EstablishmentOwner[]
+}
+
+/** Personne propriétaire : 0 à n établissements. */
+model Owner {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  firstName String  @default("")
+  lastName  String
+  email     String?
+  phone     String?
+  address   String?
+
+  /** SCI ou société : le nom de la structure s’ajoute au prénom et au nom du mandataire. */
+  isCompany   Boolean @default(false)
+  companyName String?
+
+  /** Signature dessinée. Pour une SCI ou une société, c’est celle du mandataire. */
+  signaturePng Bytes?
+
+  /** Compte admin auquel cette fiche correspond, le cas échéant. */
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  establishments EstablishmentOwner[]
+  quittances    QuittanceOwner[]
+}
+
+/** Lien propriétaire ↔ établissement. Un établissement n’est jamais laissé sans propriétaire. */
+model EstablishmentOwner {
+  createdAt       DateTime @default(now())
+  ownerId         String
+  establishmentId String
+  owner           Owner         @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+
+  @@id([ownerId, establishmentId])
+  @@index([establishmentId])
+}
+
+/** Locataire d’un logement loué vide au mois. */
+model MonthlyTenant {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  name            String
+  firstName       String   @default("")
+  lastName        String   @default("")
+  email           String?
+  phone           String?
+  formerAddress   String?
+  visaNumber      String?
+  nationality     String?
+  birthDate       DateTime?
+  /** Premier mois du bail, pour l’état des loyers. */
+  leaseStart      DateTime?
+
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+  receipts        RentReceipt[]
+  quittances      QuittanceTenant[]
+
+  /** Compte de l’application, s’il en a un. */
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([establishmentId])
+}
+
+/** Quittance ou reçu déjà envoyé pour un mois, afin de le renvoyer. */
+model RentReceipt {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lastSentAt  DateTime @default(now())
+
+  tenantId        String
+  tenant          MonthlyTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+
+  periodFrom      DateTime
+  periodTo        DateTime
+  rentCents       Int
+  chargesCents    Int
+  receivedCents   Int
+  paymentDate     DateTime
+  paymentMethod   String
+  place           String
+  issueDate       DateTime
+  bailleurName    String
+  bailleurAddress String   @default("")
+  bailleurPhone   String   @default("")
+  bailleurEmail   String   @default("")
+  logement        String
+  sentTo          String
+
+  @@unique([tenantId, periodFrom])
+  @@index([establishmentId])
+}
+
+/** Quittance envoyée. Au moins un locataire et un propriétaire, via les tables de lien. */
+model Quittance {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sentAt    DateTime @default(now())
+
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+
+  periodFrom      DateTime
+  periodTo        DateTime
+  rentCents       Int
+  chargesCents    Int
+  receivedCents   Int
+  paymentDate     DateTime
+  paymentMethod   String
+  place           String
+  issueDate       DateTime
+  bailleurName    String
+  bailleurAddress String   @default("")
+  bailleurPhone   String   @default("")
+  bailleurEmail   String   @default("")
+  tenantName      String
+  logement        String
+  sentTo          String
+  feeLines        Json
+
+  tenants QuittanceTenant[]
+  owners  QuittanceOwner[]
+
+  @@index([establishmentId])
+}
+
+model QuittanceTenant {
+  quittanceId String
+  tenantId    String
+  quittance   Quittance     @relation(fields: [quittanceId], references: [id], onDelete: Cascade)
+  tenant      MonthlyTenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@id([quittanceId, tenantId])
+  @@index([tenantId])
+}
+
+model QuittanceOwner {
+  quittanceId String
+  ownerId     String
+  quittance   Quittance @relation(fields: [quittanceId], references: [id], onDelete: Cascade)
+  owner       Owner     @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+
+  @@id([quittanceId, ownerId])
+  @@index([ownerId])
+}
+
+model EstablishmentMember {
+  createdAt       DateTime @default(now())
+  userId          String
+  establishmentId String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+
+  @@id([userId, establishmentId])
 }
 
 model Booking {
@@ -46,6 +279,11 @@ model Booking {
 
   notes       String?
   equipment   String?       // demande d'info équipement / besoins
+  /** Site de location externe, si la réservation vient d’une plateforme. */
+  platform    String?
+  /** Capture liée à la plateforme (confirmation, reçu…). */
+  platformImage     Bytes?
+  platformImageType String?
 
   /** Frais annexes (ménage, etc.) : total + détail figé au moment de la demande. */
   ancillaryTotalCents Int   @default(0)
@@ -53,6 +291,12 @@ model Booking {
 
   userId      String
   user        User          @relation(fields: [userId], references: [id])
+
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+
+  /** Messages de chat créés avec la demande. Supprimés avec la réservation. */
+  messages Message[]
 }
 
 /** Frais annexes configurables par l’admin (ajoutés à chaque demande de réservation). */
@@ -65,6 +309,9 @@ model AncillaryFee {
   priceCents Int
   sortOrder  Int      @default(0)
   active     Boolean  @default(true)
+
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
 }
 
 model CalendarBlock {
@@ -75,6 +322,9 @@ model CalendarBlock {
   startDate DateTime
   endDate   DateTime
   reason    String?
+
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
 }
 
 model DayConfig {
@@ -82,12 +332,17 @@ model DayConfig {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  date             DateTime @unique
+  date             DateTime
   priceCents       Int
   arrivalAllowed   Boolean  @default(true)
   departureAllowed Boolean  @default(true)
   promoPercent     Int?     // 0..100
   promoLabel       String?
+
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+
+  @@unique([establishmentId, date])
 }
 
 /** Promo « durée de séjour » : % sur le total après promos jour, si toutes les nuits tombent dans [validFrom, validToInclusive] et durée ≥ minStayNights. */
@@ -102,6 +357,9 @@ model StayPromoRule {
   promoPercent       Int // 1..100
   label              String?
   active             Boolean  @default(true)
+
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
 }
 
 model PortfolioMedia {
@@ -116,6 +374,10 @@ model PortfolioMedia {
   publicUrl   String?
   order       Int      @default(0)
   isPublished Boolean  @default(true)
+
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+  coverFor        Establishment? @relation("EstablishmentCover")
 }
 
 model Conversation {
@@ -123,11 +385,15 @@ model Conversation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // 1 conversation par client (MVP)
-  clientId  String   @unique
-  client    User     @relation(fields: [clientId], references: [id])
+  // 1 conversation par client et par établissement
+  clientId        String
+  client          User          @relation(fields: [clientId], references: [id])
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
 
   messages  Message[]
+
+  @@unique([clientId, establishmentId])
 }
 
 model Message {
@@ -137,12 +403,18 @@ model Message {
   conversationId String
   conversation   Conversation  @relation(fields: [conversationId], references: [id])
 
+  /** Renseigné pour le message créé avec une demande. Cascade à la suppression de la réservation. */
+  bookingId String?
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
   senderId       String
   sender         User          @relation(fields: [senderId], references: [id])
 
   body           String
   readByAdminAt  DateTime?
   readByClientAt DateTime?
+
+  @@index([bookingId])
 }
 
 model SiteSettings {
@@ -150,10 +422,17 @@ model SiteSettings {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
+  establishmentId       String        @unique
+  establishment         Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+
   studioName            String   @default("Studio des Grenadiers")
+  /** Points sous le titre de l’accueil. Une ligne = un point. */
+  heroPoints            String   @default("Réservations en direct propriétaire\nPrise de contact téléphonique\nContrat et bail envoyés par la poste\n100 % humain")
   /** Nom affiché du propriétaire (infos pratiques publiques). */
   ownerName             String?
   address               String?
+  /** Ville affichée au-dessus de la tuile d’accueil. */
+  city                  String?
   phone                 String?
   publicEmail           String?
 

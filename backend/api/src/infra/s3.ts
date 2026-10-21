@@ -1,6 +1,14 @@
 import { S3Client, DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { getEnv } from "./env.js";
+import { getEnv } from "../config/env.js";
+
+/** Abstraction stockage objets — les services dépendent de cette interface, pas du SDK S3. */
+export interface ObjectStorage {
+  presignPutObject(key: string, contentType: string): Promise<{ uploadUrl: string }>;
+  deleteObject(key: string): Promise<void>;
+  getObjectStream(key: string): Promise<{ ContentType?: string; Body?: unknown }>;
+  putObjectBuffer(key: string, body: Buffer, contentType: string): Promise<void>;
+}
 
 function requireS3() {
   const env = getEnv();
@@ -65,3 +73,11 @@ export async function putObjectBuffer(key: string, body: Buffer, contentType: st
   );
 }
 
+export function createS3ObjectStorage(): ObjectStorage {
+  return {
+    presignPutObject,
+    deleteObject,
+    getObjectStream,
+    putObjectBuffer
+  };
+}

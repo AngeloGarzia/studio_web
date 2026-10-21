@@ -1,0 +1,44 @@
+import { Router } from "express";
+import { requireAdmin } from "../../middleware/auth.js";
+import { quittanceUpload } from "../../shared/mailAttachments.js";
+import type { EstablishmentController } from "./establishment.controller.js";
+
+export function createEstablishmentRouter(controller: EstablishmentController): Router {
+  const r = Router();
+  r.get("/public/establishments", controller.publicList);
+  r.get("/public/visit", controller.publicVisit);
+  r.post("/public/establishments/:id/choose", controller.choosePublic);
+  r.delete("/public/establishments/choice", controller.clearPublic);
+  r.get("/admin/directory", requireAdmin, controller.directory);
+  r.post("/admin/directory/owners", requireAdmin, controller.createDirectoryOwner);
+  r.post("/admin/directory/tenants", requireAdmin, controller.createDirectoryTenant);
+  r.post("/admin/directory/owners/:ownerId/account", requireAdmin, controller.createOwnerAccount);
+  r.post("/admin/directory/tenants/:tenantId/account", requireAdmin, controller.createTenantAccount);
+  r.post("/admin/directory/owners/:ownerId/confirmation", requireAdmin, controller.sendOwnerConfirmation);
+  r.post("/admin/directory/tenants/:tenantId/confirmation", requireAdmin, controller.sendTenantConfirmation);
+  r.get("/admin/directory/owners/:ownerId/signature", requireAdmin, controller.ownerSignature);
+  r.put("/admin/directory/owners/:ownerId/signature", requireAdmin, controller.saveOwnerSignature);
+  r.delete("/admin/directory/owners/:ownerId/signature", requireAdmin, controller.clearOwnerSignature);
+  r.patch("/admin/directory/owners/:ownerId", requireAdmin, controller.updateDirectoryOwner);
+  r.patch("/admin/directory/tenants/:tenantId", requireAdmin, controller.updateDirectoryTenant);
+  r.get("/admin/owners", requireAdmin, controller.listOwners);
+  r.post("/admin/owners", requireAdmin, controller.createOwner);
+  r.patch("/admin/owners/:ownerId", requireAdmin, controller.updateOwner);
+  r.delete("/admin/owners/:ownerId", requireAdmin, controller.deleteOwner);
+  r.get("/admin/establishments", requireAdmin, controller.list);
+  r.get("/admin/establishments/:id/images", requireAdmin, controller.images);
+  r.post("/admin/establishments/:id/owners", requireAdmin, controller.attachOwner);
+  r.delete("/admin/establishments/:id/owners/:ownerId", requireAdmin, controller.detachOwner);
+  r.post("/admin/establishments", requireAdmin, controller.create);
+  r.post("/admin/establishments/monthly-quittance", requireAdmin, quittanceUpload, controller.sendMonthlyQuittance);
+  r.post("/admin/establishments/monthly-quittance/preview", requireAdmin, controller.previewMonthlyQuittance);
+  r.post("/admin/establishments/:id/activate", requireAdmin, controller.activate);
+  r.post("/admin/establishments/:id/tenants", requireAdmin, controller.createTenant);
+  r.get("/admin/establishments/:id/tenants/:tenantId", requireAdmin, controller.tenantFile);
+  r.patch("/admin/establishments/:id/tenants/:tenantId", requireAdmin, controller.updateTenant);
+  r.post("/admin/establishments/:id/tenants/:tenantId/receipts/:receiptId/send", requireAdmin, controller.resendReceipt);
+  r.delete("/admin/establishments/:id/tenants/:tenantId", requireAdmin, controller.deleteTenant);
+  r.patch("/admin/establishments/:id", requireAdmin, controller.update);
+  r.delete("/admin/establishments/:id", requireAdmin, controller.remove);
+  return r;
+}

@@ -4,6 +4,8 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin, { DateClickArg, DateSelectArg } from "@fullcalendar/interaction";
 import multiMonthPlugin from "@fullcalendar/multimonth";
 import { api } from "../../lib/api";
+import { DEFAULT_BOOKING_PLATFORM, MAIN_BOOKING_PLATFORMS, OTHER_BOOKING_PLATFORMS } from "../../lib/bookingPlatforms";
+import { DateField } from "../../lib/dateField";
 
 function localDayKey(d: Date) {
   const x = new Date(d);
@@ -38,6 +40,157 @@ function addDaysLocal(d: Date, days: number) {
   return x;
 }
 
+function bookingCoveringDay(bookings: Array<{ status?: string; startDate: string; endDate: string }>, dayKey: string) {
+  let found: (typeof bookings)[number] | null = null;
+  for (const b of bookings) {
+    if (b.status !== "CONFIRMED" && b.status !== "PENDING") continue;
+    const start = new Date(b.startDate);
+    const end = new Date(b.endDate);
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) continue;
+    let covers = false;
+    for (let d = new Date(start); d < end; d = addDaysLocal(d, 1)) {
+      if (localDayKey(d) === dayKey) {
+        covers = true;
+        break;
+      }
+    }
+    if (!covers) continue;
+    if (!found || b.status === "CONFIRMED") found = b;
+  }
+  return found;
+}
+
+/** « Prénom Nom » → prénom, puis le reste du nom en dessous. */
+function splitClientName(label: string): { first: string; last: string } {
+  const parts = label.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return { first: parts[0] ?? label, last: "" };
+  return { first: parts[0], last: parts.slice(1).join(" ") };
+}
+
+type BookingClient = {
+  id: string;
+  email: string;
+  profileName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  residenceAddress: string | null;
+};
+
+function clientNameParts(client: { firstName?: string | null; lastName?: string | null; profileName?: string | null }) {
+  if (client.firstName?.trim() || client.lastName?.trim()) {
+    return { firstName: client.firstName?.trim() ?? "", lastName: client.lastName?.trim() ?? "" };
+  }
+  const split = splitClientName(client.profileName ?? "");
+  return { firstName: split.first, lastName: split.last };
+}
+
+function clientLabel(client: BookingClient) {
+  const names = clientNameParts(client);
+  return [names.firstName, names.lastName].filter(Boolean).join(" ") || client.profileName?.trim() || client.email;
+}
+
+function textWiderThan(container: HTMLElement, text: string) {
+  const probe = document.createElement("span");
+  probe.style.position = "absolute";
+  probe.style.visibility = "hidden";
+  probe.style.whiteSpace = "nowrap";
+  probe.style.pointerEvents = "none";
+  probe.style.font = "inherit";
+  probe.textContent = text;
+  container.appendChild(probe);
+  const overflows = probe.offsetWidth > container.clientWidth + 1;
+  probe.remove();
+  return overflows;
+}
+
+function DayClientCard({
+  booking,
+  fallbackName
+}: {
+  booking: { user?: { profileName?: string | null; email?: string | null; phone?: string | null } } | null;
+  fallbackName: string;
+}) {
+  const name = booking?.user?.profileName?.trim() || fallbackName;
+  const email = booking?.user?.email?.trim() || "";
+  const phone = booking?.user?.phone?.trim() || "";
+  const tel = phone.replace(/[^\d+]/g, "");
+
+  return (
+    <div className="mt-3 rounded-2xl border border-slate-200 bg-white/70 p-3 text-sm text-slate-800">
+      <div className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Client</div>
+      <div className="mt-1 font-semibold text-slate-900">{name}</div>
+      <div className="mt-2">
+        <span className="font-semibold">Téléphone : </span>
+        {tel ? (
+          <a className="font-semibold text-water-700 underline decoration-water-400/70 hover:text-water-900" href={`tel:${tel}`}>
+            {phone}
+          </a>
+        ) : (
+          "—"
+        )}
+      </div>
+      <div className="mt-1">
+        <span className="font-semibold">E-mail : </span>
+        {email ? (
+          <a className="font-semibold text-water-700 underline decoration-water-400/70 hover:text-water-900" href={`mailto:${email}`}>
+            {email}
+          </a>
+        ) : (
+          "—"
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ClientDayName({ label, onOpen }: { label: string; onOpen?: () => void }) {
+  const { first, last } = splitClientName(label);
+  const ref = React.useRef<HTMLButtonElement>(null);
+  const [compact, setCompact] = React.useState(false);
+  const initial = first.charAt(0).toLocaleUpperCase("fr-FR");
+  const compactText = last ? `${initial}. ${last}` : first;
+
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => {
+      if (!last || el.clientWidth <= 0) {
+        setCompact(false);
+        return;
+      }
+      setCompact(textWiderThan(el, first) || textWiderThan(el, last));
+    };
+    check();
+    const observer = new ResizeObserver(check);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [first, last]);
+
+  return (
+    <button
+      ref={ref}
+      type="button"
+      className="w-full max-w-full cursor-pointer self-stretch text-center text-[11px] font-bold leading-tight text-slate-700"
+      title={`Modifier la réservation de ${label}`}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onOpen?.();
+      }}
+    >
+      {compact ? (
+        <div className="break-words">{compactText}</div>
+      ) : (
+        <>
+          <div className="truncate">{first}</div>
+          {last ? <div className="truncate">{last}</div> : null}
+        </>
+      )}
+    </button>
+  );
+}
+
 function countInclusiveWallDays(fromYmd: string, toYmd: string): number {
   if (fromYmd > toYmd) return 0;
   let n = 0;
@@ -49,6 +202,19 @@ function countInclusiveWallDays(fromYmd: string, toYmd: string): number {
     if (n > 4000) break;
   }
   return n;
+}
+
+function addBookingError(code: string): string {
+  if (code === "DATES_UNAVAILABLE") return "Ces dates ne sont pas libres.";
+  if (code === "ARRIVAL_NOT_ALLOWED") return "L’arrivée n’est pas autorisée ce jour.";
+  if (code === "DEPARTURE_NOT_ALLOWED") return "Le départ n’est pas autorisé ce jour.";
+  if (code === "CLIENT_NOT_FOUND") return "Ce client n’est plus en base.";
+  if (code === "EMAIL_TAKEN") return "Cet email appartient déjà à un compte qui n’est pas un client.";
+  if (code === "VALIDATION_ERROR") return "Vérifie les dates et les informations du client.";
+  if (code === "IMAGE_TYPE") return "L’image doit être un JPEG, un PNG ou un WebP.";
+  if (code === "IMAGE_TOO_LARGE") return "L’image dépasse 8 Mo.";
+  if (code === "PLATFORM_REQUIRED") return "Choisis d’abord une plateforme.";
+  return "Impossible d’enregistrer la réservation.";
 }
 
 function sortNightYmd(keys: Iterable<string>): string[] {
@@ -141,6 +307,62 @@ export function AdminCalendarPage() {
   const [bookingModalId, setBookingModalId] = React.useState<string | null>(null);
   const [bookingModalData, setBookingModalData] = React.useState<any>(null);
   const [bookingLoading, setBookingLoading] = React.useState(false);
+  const [bookingSearch, setBookingSearch] = React.useState("");
+  const [bookingStatusFilter, setBookingStatusFilter] = React.useState<"ALL" | "CONFIRMED" | "PENDING" | "CANCELLED">("ALL");
+  const [mailSendingId, setMailSendingId] = React.useState<string | null>(null);
+  const [mailStatusById, setMailStatusById] = React.useState<Record<string, string>>({});
+  const [proposal, setProposal] = React.useState<{
+    id: string;
+    guest: string;
+    requestedLabel: string;
+    proposedStart: string;
+    proposedEnd: string;
+    message: string;
+  } | null>(null);
+  const [proposalSending, setProposalSending] = React.useState(false);
+  const [proposalError, setProposalError] = React.useState<string | null>(null);
+  const [addOpen, setAddOpen] = React.useState(false);
+  const [addSaving, setAddSaving] = React.useState(false);
+  const [addError, setAddError] = React.useState<string | null>(null);
+  const [addNotice, setAddNotice] = React.useState<string | null>(null);
+  const [platformFile, setPlatformFile] = React.useState<File | null>(null);
+  const [platformPreview, setPlatformPreview] = React.useState<string | null>(null);
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [editLoading, setEditLoading] = React.useState(false);
+  const [editSaving, setEditSaving] = React.useState(false);
+  const [editError, setEditError] = React.useState<string | null>(null);
+  const [editFile, setEditFile] = React.useState<File | null>(null);
+  const [editPreview, setEditPreview] = React.useState<string | null>(null);
+  const [editForm, setEditForm] = React.useState({
+    id: "",
+    start: "",
+    end: "",
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    residenceAddress: "",
+    platformEnabled: false,
+    platform: DEFAULT_BOOKING_PLATFORM,
+    notes: "",
+    hasImage: false
+  });
+  const [clients, setClients] = React.useState<BookingClient[]>([]);
+  const [addForm, setAddForm] = React.useState({
+    start: "",
+    end: "",
+    mode: "existing" as "existing" | "new",
+    clientId: "",
+    query: "",
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    residenceAddress: "",
+    platformEnabled: false,
+    platform: DEFAULT_BOOKING_PLATFORM,
+    notes: ""
+  });
 
   const [stayPromoRules, setStayPromoRules] = React.useState<any[]>([]);
   const [stayPromoErr, setStayPromoErr] = React.useState<string | null>(null);
@@ -287,16 +509,15 @@ export function AdminCalendarPage() {
   const contiguousPeriodChunks = React.useMemo(() => chunksContiguousWallDays(periodSortedYmd), [periodSortedYmd]);
 
   const events = React.useMemo(() => {
-    if (!cal) return [];
-    const bookingEvents = (cal.bookings ?? []).map((b: any) => ({
+    const bookingEvents = (bookings ?? []).map((b: any) => ({
       id: `b:${b.id}`,
       start: b.startDate,
       end: b.endDate,
       display: "background" as const,
       backgroundColor: b.status === "CONFIRMED" ? "#c1121f" : "#f7b801"
     }));
-    const blockEvents = (cal.blocks ?? []).map((blk: any) => ({
-      id: `blk:${blk.id}`,
+    const blockEvents = (cal?.blocks ?? []).map((blk: any, i: number) => ({
+      id: `blk:${blk.startDate}:${blk.endDate}:${i}`,
       start: blk.startDate,
       end: blk.endDate,
       display: "background" as const,
@@ -304,7 +525,7 @@ export function AdminCalendarPage() {
       classNames: ["sdg-block-bg"]
     }));
     return [...bookingEvents, ...blockEvents];
-  }, [cal]);
+  }, [cal, bookings]);
 
   const configByDay = React.useMemo(() => {
     const map = new Map<string, any>();
@@ -332,6 +553,26 @@ export function AdminCalendarPage() {
         const existing = map.get(key);
         if (!existing) map.set(key, label);
         if (b.status === "CONFIRMED") map.set(key, label);
+      }
+    }
+    return map;
+  }, [bookings]);
+
+  const bookingIdByDay = React.useMemo(() => {
+    const map = new Map<string, string>();
+    const rank = new Map<string, string>();
+    for (const b of bookings ?? []) {
+      if (b.status !== "CONFIRMED" && b.status !== "PENDING" || !b.id) continue;
+      const start = new Date(b.startDate);
+      const end = new Date(b.endDate);
+      if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) continue;
+      for (let d = new Date(start); d < end; d = addDaysLocal(d, 1)) {
+        const key = localDayKey(d);
+        const current = rank.get(key);
+        if (!current || b.status === "CONFIRMED") {
+          map.set(key, b.id);
+          rank.set(key, b.status);
+        }
       }
     }
     return map;
@@ -439,6 +680,10 @@ export function AdminCalendarPage() {
 
   const toggleDayBlock = async () => {
     if (!dayModalKey) return;
+    if (!dayBlocked && bookingCoveringDay(bookings, dayModalKey)) {
+      setError("Ce jour a une réservation demandée ou confirmée. Passe par les réservations pour le libérer.");
+      return;
+    }
     setError(null);
     try {
       const startDate = `${dayModalKey}T00:00:00.000Z`;
@@ -490,6 +735,8 @@ export function AdminCalendarPage() {
       }
       return;
     }
+    const clicked = arg.jsEvent?.target;
+    if (clicked instanceof Element && clicked.closest("button")) return;
     setError(null);
     try {
       const raw = arg.dateStr ?? localDayKey(arg.date);
@@ -592,6 +839,290 @@ export function AdminCalendarPage() {
     }
   };
 
+  const openAddBooking = () => {
+    const nights = sortNightYmd(periodSelectedYmd);
+    const start = nights[0] ?? "";
+    const end = nights.length ? addWallDaysYmd(nights[nights.length - 1]!, 1) : "";
+    setAddError(null);
+    setPlatformFile(null);
+    setPlatformPreview((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return null;
+    });
+    setAddForm({ start, end, mode: "existing", clientId: "", query: "", firstName: "", lastName: "", email: "", phone: "", residenceAddress: "", platformEnabled: false, platform: DEFAULT_BOOKING_PLATFORM, notes: "" });
+    setAddOpen(true);
+    void api.adminClients().then(setClients).catch(() => setClients([]));
+  };
+
+  const visibleClients = React.useMemo(() => {
+    const q = addForm.query.trim().toLowerCase();
+    if (!q) return clients;
+    return clients.filter((client) => {
+      const blob = `${clientLabel(client)} ${client.email} ${client.phone ?? ""} ${client.residenceAddress ?? ""}`.toLowerCase();
+      return blob.includes(q);
+    });
+  }, [addForm.query, clients]);
+
+  const submitAddBooking = async () => {
+    if (!addForm.start || !addForm.end || addForm.end <= addForm.start) {
+      setAddError("Le départ doit être après l’arrivée.");
+      return;
+    }
+    if (addForm.mode === "existing" && !addForm.clientId) {
+      setAddError("Choisis un client.");
+      return;
+    }
+    if (addForm.mode === "new" && (!addForm.firstName.trim() || !addForm.lastName.trim() || !addForm.email.trim() || addForm.phone.trim().length < 6)) {
+      setAddError("Prénom, nom, email et téléphone sont requis pour un nouveau client.");
+      return;
+    }
+    if (addForm.platformEnabled && platformFile) {
+      const type = platformFile.type;
+      if (type !== "image/jpeg" && type !== "image/png" && type !== "image/webp") {
+        setAddError("L’image doit être un JPEG, un PNG ou un WebP.");
+        return;
+      }
+      if (platformFile.size > 8_000_000) {
+        setAddError("L’image dépasse 8 Mo.");
+        return;
+      }
+    }
+    setAddSaving(true);
+    setAddError(null);
+    try {
+      const notes = addForm.notes.trim();
+      const result = await api.adminCreateBooking({
+        startDate: addForm.start,
+        endDate: addForm.end,
+        ...(notes ? { notes } : {}),
+        ...(addForm.platformEnabled ? { platform: addForm.platform } : {}),
+        ...(addForm.mode === "existing"
+          ? {
+              clientId: addForm.clientId,
+              firstName: addForm.firstName.trim(),
+              lastName: addForm.lastName.trim(),
+              residenceAddress: addForm.residenceAddress.trim()
+            }
+          : {
+              client: {
+                firstName: addForm.firstName.trim(),
+                lastName: addForm.lastName.trim(),
+                email: addForm.email.trim(),
+                phone: addForm.phone.trim()
+              },
+              ...(addForm.residenceAddress.trim() ? { residenceAddress: addForm.residenceAddress.trim() } : {})
+            })
+      });
+      if (addForm.platformEnabled && platformFile) {
+        try {
+          await api.adminUploadBookingPlatformImage(result.booking.id, platformFile);
+        } catch (imageError: any) {
+          setAddOpen(false);
+          setAddNotice("Réservation ajoutée, mais l’image n’a pas été enregistrée.");
+          setError(addBookingError(String(imageError?.error ?? "")));
+          await reload();
+          return;
+        }
+      }
+      setAddOpen(false);
+      setAddNotice(result.clientCreated ? "Client créé et réservation ajoutée." : "Réservation ajoutée.");
+      await reload();
+    } catch (e: any) {
+      setAddError(addBookingError(String(e?.error ?? "")));
+    } finally {
+      setAddSaving(false);
+    }
+  };
+
+  const deleteBooking = async (id: string, status: string) => {
+    const label = status === "PENDING" ? "cette demande de réservation" : "cette réservation";
+    if (!window.confirm(`Supprimer définitivement ${label} ? Le message de demande lié sera aussi effacé.`)) return;
+    setError(null);
+    try {
+      await api.adminDeleteBooking(id);
+      if (bookingModalId === id) setBookingModalId(null);
+      setProposal((prev) => (prev?.id === id ? null : prev));
+      await reload();
+    } catch (e: any) {
+      setError(e?.error ?? "Erreur");
+    }
+  };
+
+  const sendBookingMail = async (id: string) => {
+    setError(null);
+    setMailSendingId(id);
+    setMailStatusById((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    try {
+      const res = await api.adminSendBookingEmail(id);
+      setMailStatusById((prev) => ({ ...prev, [id]: `Mail envoyé à ${res.to}` }));
+    } catch (e: any) {
+      const code = e?.error ?? "Erreur";
+      const msg =
+        code === "MAIL_DISABLED"
+          ? "SMTP non configuré"
+          : code === "NO_GUEST_EMAIL"
+            ? "Pas d’email client"
+            : code === "MAIL_SEND_FAILED"
+              ? "Échec d’envoi"
+              : String(code);
+      setMailStatusById((prev) => ({ ...prev, [id]: msg }));
+      setError(`Mail: ${msg}`);
+    } finally {
+      setMailSendingId(null);
+    }
+  };
+
+  const openProposal = (b: { id: string; startDate: string; endDate: string; user?: { profileName?: string | null; email?: string | null } | null }) => {
+    const start = dbNightYmd(b.startDate);
+    const end = dbNightYmd(b.endDate);
+    setProposalError(null);
+    setProposal({
+      id: b.id,
+      guest: b.user?.profileName?.trim() || b.user?.email || "Client",
+      requestedLabel: `${new Date(b.startDate).toLocaleDateString("fr-FR")} → ${new Date(b.endDate).toLocaleDateString("fr-FR")}`,
+      proposedStart: start,
+      proposedEnd: end,
+      message: ""
+    });
+  };
+
+  const sendProposal = async () => {
+    if (!proposal) return;
+    const message = proposal.message.trim();
+    if (!message) {
+      setProposalError("Écris le message de la contre-proposition.");
+      return;
+    }
+    if (proposal.proposedEnd <= proposal.proposedStart) {
+      setProposalError("La date de départ doit être après l’arrivée.");
+      return;
+    }
+    setProposalSending(true);
+    setProposalError(null);
+    try {
+      const res = await api.adminProposeBooking(proposal.id, {
+        proposedStart: proposal.proposedStart,
+        proposedEnd: proposal.proposedEnd,
+        message
+      });
+      setMailStatusById((prev) => ({ ...prev, [proposal.id]: `Contre-proposition envoyée à ${res.to}` }));
+      setProposal(null);
+    } catch (e: any) {
+      const code = e?.error ?? "Erreur";
+      const msg =
+        code === "MAIL_DISABLED"
+          ? "SMTP non configuré"
+          : code === "NO_GUEST_EMAIL"
+            ? "Pas d’email client"
+            : code === "NOT_A_REQUEST"
+              ? "La contre-proposition concerne une demande en attente."
+              : code === "MAIL_SEND_FAILED"
+                ? "Échec d’envoi"
+                : String(code);
+      setProposalError(msg);
+    } finally {
+      setProposalSending(false);
+    }
+  };
+
+  const openEditBooking = async (id: string) => {
+    setEditError(null);
+    setEditFile(null);
+    setEditPreview((current) => {
+      if (current?.startsWith("blob:")) URL.revokeObjectURL(current);
+      return null;
+    });
+    setEditOpen(true);
+    setEditLoading(true);
+    try {
+      const data = (await api.adminBookingDetail(id)) as {
+        booking: {
+          startDate: string;
+          endDate: string;
+          notes?: string | null;
+          platform?: string | null;
+          platformImageType?: string | null;
+          user?: {
+            firstName?: string | null;
+            lastName?: string | null;
+            profileName?: string | null;
+            email?: string | null;
+            phone?: string | null;
+            residenceAddress?: string | null;
+          } | null;
+        };
+      };
+      const names = clientNameParts(data.booking.user ?? {});
+      const platform = data.booking.platform?.trim() || "";
+      setEditForm({
+        id,
+        start: dbNightYmd(data.booking.startDate),
+        end: dbNightYmd(data.booking.endDate),
+        firstName: names.firstName,
+        lastName: names.lastName,
+        email: data.booking.user?.email ?? "",
+        phone: data.booking.user?.phone ?? "",
+        residenceAddress: data.booking.user?.residenceAddress ?? "",
+        platformEnabled: Boolean(platform),
+        platform: platform || DEFAULT_BOOKING_PLATFORM,
+        notes: data.booking.notes ?? "",
+        hasImage: Boolean(data.booking.platformImageType)
+      });
+      if (data.booking.platformImageType) setEditPreview(`/api/admin/bookings/${id}/platform-image`);
+    } catch (e: unknown) {
+      const code = e && typeof e === "object" && "error" in e ? String((e as { error: unknown }).error) : "";
+      setEditError(addBookingError(code));
+      setEditOpen(false);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const submitEditBooking = async () => {
+    if (!editForm.start || !editForm.end || editForm.end <= editForm.start) {
+      setEditError("Le départ doit être après l’arrivée.");
+      return;
+    }
+    if (editForm.platformEnabled && editFile) {
+      if (editFile.type !== "image/jpeg" && editFile.type !== "image/png" && editFile.type !== "image/webp") {
+        setEditError("L’image doit être un JPEG, un PNG ou un WebP.");
+        return;
+      }
+      if (editFile.size > 8_000_000) {
+        setEditError("L’image dépasse 8 Mo.");
+        return;
+      }
+    }
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      await api.adminUpdateBooking(editForm.id, {
+        startDate: editForm.start,
+        endDate: editForm.end,
+        notes: editForm.notes.trim(),
+        platform: editForm.platformEnabled ? editForm.platform : null,
+        residenceAddress: editForm.residenceAddress.trim(),
+        firstName: editForm.firstName.trim(),
+        lastName: editForm.lastName.trim(),
+        phone: editForm.phone.trim()
+      });
+      if (editForm.platformEnabled && editFile) {
+        await api.adminUploadBookingPlatformImage(editForm.id, editFile);
+      }
+      setEditOpen(false);
+      await reload();
+    } catch (e: unknown) {
+      const code = e && typeof e === "object" && "error" in e ? String((e as { error: unknown }).error) : "";
+      setEditError(addBookingError(code));
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const openBookingModal = async (id: string) => {
     setError(null);
     setBookingModalId(id);
@@ -607,6 +1138,51 @@ export function AdminCalendarPage() {
       setBookingLoading(false);
     }
   };
+
+  const filteredBookings = React.useMemo(() => {
+    const q = bookingSearch.trim().toLowerCase();
+    const statusLabel = (s: string) => {
+      if (s === "CONFIRMED") return "confirmé confirme confirmed";
+      if (s === "PENDING") return "en attente pending attente";
+      if (s === "CANCELLED") return "annulé annule cancelled canceled";
+      return s;
+    };
+    const haystack = (b: any) => {
+      const start = new Date(b.startDate);
+      const end = new Date(b.endDate);
+      const parts = [
+        b.id,
+        b.status,
+        statusLabel(String(b.status ?? "")),
+        b.user?.profileName,
+        b.user?.email,
+        b.user?.phone,
+        b.notes,
+        b.equipment,
+        Number.isFinite(start.getTime()) ? start.toLocaleDateString("fr-FR") : "",
+        Number.isFinite(end.getTime()) ? end.toLocaleDateString("fr-FR") : "",
+        Number.isFinite(start.getTime()) ? start.toISOString().slice(0, 10) : "",
+        Number.isFinite(end.getTime()) ? end.toISOString().slice(0, 10) : ""
+      ];
+      return parts.filter(Boolean).join(" ").toLowerCase();
+    };
+    let rows = [...(bookings ?? [])];
+    if (bookingStatusFilter !== "ALL") {
+      rows = rows.filter((b) => b.status === bookingStatusFilter);
+    }
+    if (q) {
+      rows = rows.filter((b) => haystack(b).includes(q));
+    }
+    const rank = (s: string) => (s === "PENDING" ? 0 : s === "CONFIRMED" ? 1 : 2);
+    rows.sort((a, b) => {
+      if (bookingStatusFilter === "ALL") {
+        const dr = rank(String(a.status)) - rank(String(b.status));
+        if (dr !== 0) return dr;
+      }
+      return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+    });
+    return rows;
+  }, [bookingSearch, bookingStatusFilter, bookings]);
 
   return (
     <div className="sdg-container py-10">
@@ -624,11 +1200,11 @@ export function AdminCalendarPage() {
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-12">
           <div className="md:col-span-3">
             <label className="sdg-label">Période du (1re nuit)</label>
-            <input className="sdg-input" type="date" value={spValidFrom} onChange={(e) => setSpValidFrom(e.target.value)} />
+            <DateField className="sdg-input" value={spValidFrom} onChange={setSpValidFrom} />
           </div>
           <div className="md:col-span-3">
             <label className="sdg-label">Au (dernière nuit incluse)</label>
-            <input className="sdg-input" type="date" value={spValidTo} onChange={(e) => setSpValidTo(e.target.value)} />
+            <DateField className="sdg-input" value={spValidTo} onChange={setSpValidTo} />
           </div>
           <div className="md:col-span-3">
             <label className="sdg-label">Nuits min.</label>
@@ -690,10 +1266,10 @@ export function AdminCalendarPage() {
                     <td className="px-3 py-2 text-slate-700">{r.label ?? "—"}</td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap gap-1">
-                        <button type="button" className="sdg-btn-soft !px-2 !py-1 text-[11px]" onClick={() => startEditStayPromo(r)}>
+                        <button type="button" className="sdg-btn-soft !px-2 !py-1 text-[12px]" onClick={() => startEditStayPromo(r)}>
                           Modifier
                         </button>
-                        <button type="button" className="sdg-btn-danger !px-2 !py-1 text-[11px]" onClick={() => void deleteStayPromo(r.id)}>
+                        <button type="button" className="sdg-btn-danger !px-2 !py-1 text-[12px]" onClick={() => void deleteStayPromo(r.id)}>
                           Supprimer
                         </button>
                       </div>
@@ -716,7 +1292,7 @@ export function AdminCalendarPage() {
       <div className="sdg-card mt-6 p-3 md:p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-slate-600">
-            Clic : ajouter / retirer un jour · Glisser (clic maintenu) : ajouter toute la plage à la sélection · Double-clic : détail du jour.
+            Clic : ajouter / retirer un jour · Clic sur un nom : modifier la réservation · Glisser (clic maintenu) : ajouter toute la plage à la sélection · Double-clic : détail du jour.
           </div>
         </div>
         <div className="text-sm text-slate-600">
@@ -733,6 +1309,11 @@ export function AdminCalendarPage() {
             multiMonthMaxColumns={wide ? 2 : 1}
             multiMonthMinWidth={320}
             locale="fr"
+            headerToolbar={{
+              start: "title",
+              center: "",
+              end: "prev next"
+            }}
             height="auto"
             fixedWeekCount
             showNonCurrentDates={false}
@@ -807,21 +1388,25 @@ export function AdminCalendarPage() {
                   </div>
 
                   {typeof priceCents === "number" ? (
-                    <div className="rounded-md bg-sun-100 px-1.5 py-0.5 text-[10px] font-extrabold text-slate-900">
+                    <div className="rounded-md bg-sun-100 px-1.5 py-0.5 text-[11px] font-extrabold text-slate-900">
                       {(priceCents / 100).toFixed(0)}€
                     </div>
                   ) : null}
 
                   {typeof promoPercent === "number" && promoPercent > 0 ? (
-                    <div className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-900">
+                    <div className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[11px] font-extrabold text-emerald-900">
                       -{promoPercent}%{promoLabel ? ` ${promoLabel}` : ""}
                     </div>
                   ) : null}
 
                   {who ? (
-                    <div className="max-w-full truncate text-[10px] font-bold text-slate-700" title={who}>
-                      {who}
-                    </div>
+                    <ClientDayName
+                      label={who}
+                      onOpen={() => {
+                        const id = bookingIdByDay.get(cellYmd);
+                        if (id) void openEditBooking(id);
+                      }}
+                    />
                   ) : null}
                 </div>
               );
@@ -884,7 +1469,7 @@ export function AdminCalendarPage() {
                   <span className="text-slate-500">Répartition des groupes indisponible.</span>
                 )}
               </div>
-              <div className="mt-1 text-[11px] leading-snug text-slate-500">
+              <div className="mt-1 text-[12px] leading-snug text-slate-500">
                 Chaque case est une date calendaire locale. Les traitements suivants s’appliquent à tous les groupes sélectionnés sans toucher aux jours situés entre deux groupes.
               </div>
             </div>
@@ -982,7 +1567,7 @@ export function AdminCalendarPage() {
               <div>
                 <div className="text-base font-extrabold tracking-tight text-slate-900">Détails du jour</div>
                 <div className="mt-1 text-sm text-slate-600">{dayModalKey}</div>
-                {dayWho ? <div className="mt-1 text-sm font-semibold text-slate-800">Réservé par: {dayWho}</div> : null}
+                {dayWho ? <DayClientCard booking={bookingCoveringDay(bookings, dayModalKey)} fallbackName={dayWho} /> : null}
                 {dayLoading ? <div className="mt-1 text-sm font-semibold text-slate-700">Chargement…</div> : null}
               </div>
               <button className="sdg-btn-soft self-end sm:self-auto" onClick={() => setDayModalKey(null)}>
@@ -1024,12 +1609,18 @@ export function AdminCalendarPage() {
 
             <div className="mt-4">
               <label className="sdg-label">Blocage (optionnel)</label>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <input className="sdg-input sm:max-w-[420px]" value={blockReason} onChange={(e) => setBlockReason(e.target.value)} placeholder="Raison (si blocage)" />
-                <button className={dayBlocked ? "sdg-btn-soft" : "sdg-btn-danger"} onClick={() => void toggleDayBlock()}>
-                  {dayBlocked ? "Débloquer ce jour" : "Bloquer ce jour"}
-                </button>
-              </div>
+              {dayWho && !dayBlocked ? (
+                <p className="text-sm font-semibold text-slate-700">
+                  Ce jour a une réservation demandée ou confirmée. Le blocage n’est pas disponible ici : passe par les réservations.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <input className="sdg-input sm:max-w-[420px]" value={blockReason} onChange={(e) => setBlockReason(e.target.value)} placeholder="Raison (si blocage)" />
+                  <button className={dayBlocked ? "sdg-btn-soft" : "sdg-btn-danger"} onClick={() => void toggleDayBlock()}>
+                    {dayBlocked ? "Débloquer ce jour" : "Bloquer ce jour"}
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -1049,7 +1640,81 @@ export function AdminCalendarPage() {
 
       <div className="sdg-card mt-6 overflow-hidden">
         <div className="border-b border-slate-200/70 bg-white/40 px-4 py-3">
-          <div className="text-sm font-extrabold tracking-tight text-slate-900">Demandes / réservations</div>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <div className="text-sm font-extrabold tracking-tight text-slate-900">Demandes / réservations</div>
+                <div className="mt-0.5 text-xs text-slate-600">
+                  {filteredBookings.length} résultat{filteredBookings.length > 1 ? "s" : ""}
+                  {filteredBookings.length !== bookings.length ? ` sur ${bookings.length}` : ""}
+                </div>
+                {addNotice ? <div className="mt-1 text-xs font-semibold text-emerald-800">{addNotice}</div> : null}
+              </div>
+              <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+                <button type="button" className="sdg-btn-primary !px-3 !py-1.5 text-xs" onClick={openAddBooking}>
+                  Ajouter une réservation
+                </button>
+                {(bookingSearch || bookingStatusFilter !== "ALL") && (
+                  <button
+                    type="button"
+                    className="sdg-btn-soft !px-3 !py-1.5 text-xs"
+                    onClick={() => {
+                      setBookingSearch("");
+                      setBookingStatusFilter("ALL");
+                    }}
+                  >
+                    Réinitialiser
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+              <div className="min-w-0 flex-1">
+                <label className="sr-only" htmlFor="booking-search">
+                  Rechercher une réservation
+                </label>
+                <input
+                  id="booking-search"
+                  className="sdg-input"
+                  type="search"
+                  value={bookingSearch}
+                  onChange={(e) => setBookingSearch(e.target.value)}
+                  placeholder="Rechercher : nom, email, téléphone, dates, statut, message…"
+                  autoComplete="off"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    { key: "CONFIRMED" as const, label: "Confirmé" },
+                    { key: "PENDING" as const, label: "En attente" },
+                    { key: "CANCELLED" as const, label: "Annulé" }
+                  ] as const
+                ).map((opt) => {
+                  const active = bookingStatusFilter === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      className={
+                        active
+                          ? opt.key === "CONFIRMED"
+                            ? "sdg-btn-primary !px-3 !py-1.5 text-xs"
+                            : opt.key === "PENDING"
+                              ? "inline-flex items-center justify-center rounded-xl bg-sun-200 px-3 py-1.5 text-xs font-extrabold text-slate-900"
+                              : "inline-flex items-center justify-center rounded-xl bg-slate-700 px-3 py-1.5 text-xs font-extrabold text-white"
+                          : "sdg-btn-soft !px-3 !py-1.5 text-xs"
+                      }
+                      aria-pressed={active}
+                      onClick={() => setBookingStatusFilter((prev) => (prev === opt.key ? "ALL" : opt.key))}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
@@ -1062,12 +1727,14 @@ export function AdminCalendarPage() {
               </tr>
             </thead>
             <tbody>
-              {bookings.map((b) => (
+              {filteredBookings.map((b) => {
+                const isConfirmed = b.status === "CONFIRMED";
+                return (
                 <tr
                   key={b.id}
                   className="cursor-pointer border-b border-slate-200/60 last:border-b-0 hover:bg-white/30"
-                  onDoubleClick={() => void openBookingModal(b.id)}
-                  title="Double-clic pour voir le détail"
+                  onClick={() => void openEditBooking(b.id)}
+                  title="Cliquer pour modifier"
                 >
                   <td className="px-4 py-3">
                     <div className="font-semibold text-slate-900">{b.user?.profileName ?? b.user?.email}</div>
@@ -1091,23 +1758,94 @@ export function AdminCalendarPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-col gap-2 sm:flex-row">
-                      <button className="sdg-btn-primary" onClick={() => void setStatus(b.id, "CONFIRMED")}>
+                      <button
+                        type="button"
+                        className="sdg-btn-primary disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled={isConfirmed}
+                        title={isConfirmed ? "Déjà confirmée" : undefined}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void setStatus(b.id, "CONFIRMED");
+                        }}
+                      >
                         Confirmer
                       </button>
-                      <button className="sdg-btn-soft" onClick={() => void setStatus(b.id, "PENDING")}>
+                      <button
+                        type="button"
+                        className="sdg-btn-soft disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled={b.status !== "PENDING" || !b.user?.email}
+                        title={
+                          b.status !== "PENDING"
+                            ? "Disponible pour une demande en attente"
+                            : !b.user?.email
+                              ? "Pas d’email client"
+                              : "Envoyer une contre-proposition par e-mail"
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openProposal(b);
+                        }}
+                      >
+                        Proposer
+                      </button>
+                      <button
+                        type="button"
+                        className="sdg-btn-soft disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled={isConfirmed}
+                        title={isConfirmed ? "Déjà confirmée" : undefined}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void setStatus(b.id, "PENDING");
+                        }}
+                      >
                         En attente
                       </button>
-                      <button className="sdg-btn-danger" onClick={() => void setStatus(b.id, "CANCELLED")}>
+                      <button
+                        type="button"
+                        className="sdg-btn-danger"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void setStatus(b.id, "CANCELLED");
+                        }}
+                      >
                         Annuler
                       </button>
+                      <button
+                        type="button"
+                        className="sdg-btn-danger"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void deleteBooking(b.id, b.status);
+                        }}
+                      >
+                        Supprimer
+                      </button>
+                      <button
+                        type="button"
+                        className="sdg-btn-soft disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled={mailSendingId === b.id || !b.user?.email}
+                        title={!b.user?.email ? "Pas d’email client" : "Envoyer un e-mail récapitulatif au client"}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void sendBookingMail(b.id);
+                        }}
+                      >
+                        {mailSendingId === b.id ? "Envoi…" : "Envoyer mail"}
+                      </button>
                     </div>
+                    {mailStatusById[b.id] ? (
+                      <div className="mt-1 text-[12px] font-semibold text-slate-600">{mailStatusById[b.id]}</div>
+                    ) : null}
                   </td>
                 </tr>
-              ))}
-              {bookings.length === 0 && (
+                );
+              })}
+              {filteredBookings.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-4 py-10 text-center text-sm text-slate-600">
-                    Aucune réservation.
+                    {bookings.length === 0
+                      ? "Aucune réservation."
+                      : "Aucun résultat pour cette recherche / ce filtre."}
                   </td>
                 </tr>
               )}
@@ -1115,6 +1853,550 @@ export function AdminCalendarPage() {
           </table>
         </div>
       </div>
+
+      {proposal ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sdg-proposal-title"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !proposalSending) setProposal(null);
+          }}
+        >
+          <div className="sdg-card w-full max-w-lg p-4 md:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div id="sdg-proposal-title" className="text-base font-extrabold tracking-tight text-slate-900">
+                  Contre-proposition
+                </div>
+                <p className="mt-1 text-sm text-slate-600">
+                  {proposal.guest} — demande du {proposal.requestedLabel}
+                </p>
+              </div>
+              <button type="button" className="sdg-btn-soft" disabled={proposalSending} onClick={() => setProposal(null)}>
+                Fermer
+              </button>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="sdg-label" htmlFor="proposal-start">
+                  Arrivée proposée
+                </label>
+                <DateField
+                  id="proposal-start"
+                  className="sdg-input"
+                  value={proposal.proposedStart}
+                  onChange={(ymd) => setProposal({ ...proposal, proposedStart: ymd })}
+                />
+              </div>
+              <div>
+                <label className="sdg-label" htmlFor="proposal-end">
+                  Départ proposé
+                </label>
+                <DateField
+                  id="proposal-end"
+                  className="sdg-input"
+                  value={proposal.proposedEnd}
+                  onChange={(ymd) => setProposal({ ...proposal, proposedEnd: ymd })}
+                />
+              </div>
+            </div>
+            <div className="mt-3">
+              <label className="sdg-label" htmlFor="proposal-message">
+                Message au client
+              </label>
+              <textarea
+                id="proposal-message"
+                className="sdg-input min-h-28"
+                value={proposal.message}
+                onChange={(e) => setProposal({ ...proposal, message: e.target.value })}
+                placeholder="Explique la proposition : autres dates, conditions, tarif…"
+              />
+            </div>
+            {proposalError ? (
+              <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{proposalError}</div>
+            ) : null}
+            <div className="mt-4 flex justify-end">
+              <button type="button" className="sdg-btn-primary disabled:opacity-50" disabled={proposalSending} onClick={() => void sendProposal()}>
+                {proposalSending ? "Envoi…" : "Envoyer la proposition"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {addOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sdg-add-booking-title"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !addSaving) setAddOpen(false);
+          }}
+        >
+          <div className="sdg-card max-h-[90dvh] w-full max-w-lg overflow-y-auto p-4 md:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div id="sdg-add-booking-title" className="text-base font-extrabold tracking-tight text-slate-900">
+                  Ajouter une réservation
+                </div>
+                <p className="mt-1 text-sm text-slate-600">Sur le logement ouvert, avec un client déjà en base ou un nouveau client.</p>
+              </div>
+              <button type="button" className="sdg-btn-soft" disabled={addSaving} onClick={() => setAddOpen(false)}>
+                Fermer
+              </button>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="sdg-label" htmlFor="add-booking-start">
+                  Arrivée
+                </label>
+                <DateField
+                  id="add-booking-start"
+                  className="sdg-input"
+                  value={addForm.start}
+                  onChange={(ymd) => setAddForm({ ...addForm, start: ymd })}
+                />
+              </div>
+              <div>
+                <label className="sdg-label" htmlFor="add-booking-end">
+                  Départ
+                </label>
+                <DateField
+                  id="add-booking-end"
+                  className="sdg-input"
+                  value={addForm.end}
+                  onChange={(ymd) => setAddForm({ ...addForm, end: ymd })}
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                className={addForm.mode === "existing" ? "sdg-btn-primary !px-3 !py-1.5 text-xs" : "sdg-btn-soft !px-3 !py-1.5 text-xs"}
+                onClick={() => {
+                  const selected = clients.find((client) => client.id === addForm.clientId);
+                  const names = selected ? clientNameParts(selected) : { firstName: "", lastName: "" };
+                  setAddForm({
+                    ...addForm,
+                    mode: "existing",
+                    firstName: names.firstName,
+                    lastName: names.lastName,
+                    residenceAddress: selected?.residenceAddress ?? ""
+                  });
+                }}
+              >
+                Client en base
+              </button>
+              <button
+                type="button"
+                className={addForm.mode === "new" ? "sdg-btn-primary !px-3 !py-1.5 text-xs" : "sdg-btn-soft !px-3 !py-1.5 text-xs"}
+                onClick={() => setAddForm({ ...addForm, mode: "new", firstName: "", lastName: "", residenceAddress: "" })}
+              >
+                Nouveau client
+              </button>
+            </div>
+            {addForm.mode === "existing" ? (
+              <div className="mt-4">
+                <label className="sdg-label" htmlFor="add-booking-client-search">
+                  Rechercher un client
+                </label>
+                <input
+                  id="add-booking-client-search"
+                  className="sdg-input"
+                  type="search"
+                  value={addForm.query}
+                  onChange={(e) => setAddForm({ ...addForm, query: e.target.value })}
+                  placeholder="Prénom, nom, email ou téléphone"
+                  autoComplete="off"
+                />
+                <div className="mt-2 max-h-48 overflow-y-auto rounded-2xl border border-slate-200">
+                  {visibleClients.length === 0 ? (
+                    <div className="px-3 py-4 text-sm text-slate-600">Aucun client ne correspond.</div>
+                  ) : (
+                    visibleClients.map((client) => {
+                      const selected = client.id === addForm.clientId;
+                      const name = clientLabel(client);
+                      const names = clientNameParts(client);
+                      return (
+                        <button
+                          key={client.id}
+                          type="button"
+                          className={`block w-full border-b border-slate-100 px-3 py-2 text-left last:border-b-0 ${
+                            selected ? "bg-water-50" : "bg-white hover:bg-slate-50"
+                          }`}
+                          onClick={() =>
+                            setAddForm({
+                              ...addForm,
+                              clientId: client.id,
+                              firstName: names.firstName,
+                              lastName: names.lastName,
+                              residenceAddress: client.residenceAddress ?? ""
+                            })
+                          }
+                        >
+                          <div className="text-sm font-semibold text-slate-900">{name}</div>
+                          <div className="text-xs text-slate-600">
+                            {client.email}
+                            {client.phone ? ` · ${client.phone}` : ""}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+                {addForm.clientId ? (
+                  <>
+                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="sdg-label" htmlFor="add-booking-firstname">
+                          Prénom
+                        </label>
+                        <input
+                          id="add-booking-firstname"
+                          className="sdg-input"
+                          value={addForm.firstName}
+                          onChange={(e) => setAddForm({ ...addForm, firstName: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="sdg-label" htmlFor="add-booking-lastname">
+                          Nom
+                        </label>
+                        <input
+                          id="add-booking-lastname"
+                          className="sdg-input"
+                          value={addForm.lastName}
+                          onChange={(e) => setAddForm({ ...addForm, lastName: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <label className="sdg-label" htmlFor="add-booking-residence">
+                        Adresse de résidence principale
+                      </label>
+                      <textarea
+                        id="add-booking-residence"
+                        className="sdg-input min-h-20"
+                        value={addForm.residenceAddress}
+                        onChange={(e) => setAddForm({ ...addForm, residenceAddress: e.target.value })}
+                        placeholder="Numéro, rue, code postal, ville"
+                      />
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-1 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="sdg-label" htmlFor="add-booking-firstname-new">
+                      Prénom
+                    </label>
+                    <input
+                      id="add-booking-firstname-new"
+                      className="sdg-input"
+                      value={addForm.firstName}
+                      onChange={(e) => setAddForm({ ...addForm, firstName: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="sdg-label" htmlFor="add-booking-lastname-new">
+                      Nom
+                    </label>
+                    <input
+                      id="add-booking-lastname-new"
+                      className="sdg-input"
+                      value={addForm.lastName}
+                      onChange={(e) => setAddForm({ ...addForm, lastName: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="sdg-label" htmlFor="add-booking-email">
+                    Email
+                  </label>
+                  <input
+                    id="add-booking-email"
+                    className="sdg-input"
+                    type="email"
+                    value={addForm.email}
+                    onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="sdg-label" htmlFor="add-booking-phone">
+                    Téléphone
+                  </label>
+                  <input
+                    id="add-booking-phone"
+                    className="sdg-input"
+                    value={addForm.phone}
+                    onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="sdg-label" htmlFor="add-booking-residence-new">
+                    Adresse de résidence principale
+                  </label>
+                  <textarea
+                    id="add-booking-residence-new"
+                    className="sdg-input min-h-20"
+                    value={addForm.residenceAddress}
+                    onChange={(e) => setAddForm({ ...addForm, residenceAddress: e.target.value })}
+                    placeholder="Numéro, rue, code postal, ville"
+                  />
+                </div>
+              </div>
+            )}
+            <div className="mt-4">
+              <label className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                <input
+                  type="checkbox"
+                  checked={addForm.platformEnabled}
+                  onChange={(e) => {
+                    const enabled = e.target.checked;
+                    if (!enabled) {
+                      setPlatformFile(null);
+                      setPlatformPreview((current) => {
+                        if (current) URL.revokeObjectURL(current);
+                        return null;
+                      });
+                    }
+                    setAddForm({
+                      ...addForm,
+                      platformEnabled: enabled,
+                      platform: addForm.platform || DEFAULT_BOOKING_PLATFORM
+                    });
+                  }}
+                  />
+                  Plateforme
+                </label>
+                {addForm.platformEnabled ? (
+                  <>
+                    <select
+                      id="add-booking-platform"
+                      className="sdg-input mt-2"
+                      aria-label="Plateforme de location"
+                      value={addForm.platform}
+                      onChange={(e) => setAddForm({ ...addForm, platform: e.target.value })}
+                    >
+                      <optgroup label="Principales">
+                        {MAIN_BOOKING_PLATFORMS.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Autres">
+                        {OTHER_BOOKING_PLATFORMS.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                    <label className="sdg-label mt-3" htmlFor="add-booking-platform-image">
+                      Image liée à la réservation
+                    </label>
+                    <input
+                      id="add-booking-platform-image"
+                      className="mt-1 block w-full text-sm text-slate-700"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] ?? null;
+                        setPlatformFile(file);
+                        setPlatformPreview((current) => {
+                          if (current) URL.revokeObjectURL(current);
+                          return file ? URL.createObjectURL(file) : null;
+                        });
+                      }}
+                    />
+                    {platformPreview ? (
+                      <img src={platformPreview} alt="Aperçu de l’image" className="mt-2 max-h-40 rounded-xl border border-slate-200" />
+                    ) : null}
+                  </>
+                ) : null}
+            </div>
+            <div className="mt-4">
+              <label className="sdg-label" htmlFor="add-booking-notes">
+                Message (optionnel)
+              </label>
+              <textarea
+                id="add-booking-notes"
+                className="sdg-input min-h-20"
+                value={addForm.notes}
+                onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })}
+              />
+            </div>
+            {addError ? (
+              <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{addError}</div>
+            ) : null}
+            <div className="mt-4 flex justify-end">
+              <button type="button" className="sdg-btn-primary disabled:opacity-50" disabled={addSaving} onClick={() => void submitAddBooking()}>
+                {addSaving ? "Enregistrement…" : "Enregistrer la réservation"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {editOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sdg-edit-booking-title"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !editSaving) setEditOpen(false);
+          }}
+        >
+          <div className="sdg-card max-h-[90dvh] w-full max-w-lg overflow-y-auto p-4 md:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div id="sdg-edit-booking-title" className="text-base font-extrabold tracking-tight text-slate-900">
+                  Modifier la réservation
+                </div>
+                <p className="mt-1 text-sm text-slate-600">{editForm.email || "Réservation du logement ouvert"}</p>
+              </div>
+              <button type="button" className="sdg-btn-soft" disabled={editSaving} onClick={() => setEditOpen(false)}>
+                Fermer
+              </button>
+            </div>
+            {editLoading ? (
+              <div className="mt-4 text-sm font-semibold text-slate-700">Chargement…</div>
+            ) : (
+              <>
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="sdg-label" htmlFor="edit-booking-start">
+                      Arrivée
+                    </label>
+                    <DateField id="edit-booking-start" className="sdg-input" value={editForm.start} onChange={(ymd) => setEditForm({ ...editForm, start: ymd })} />
+                  </div>
+                  <div>
+                    <label className="sdg-label" htmlFor="edit-booking-end">
+                      Départ
+                    </label>
+                    <DateField id="edit-booking-end" className="sdg-input" value={editForm.end} onChange={(ymd) => setEditForm({ ...editForm, end: ymd })} />
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="sdg-label" htmlFor="edit-booking-firstname">
+                      Prénom
+                    </label>
+                    <input id="edit-booking-firstname" className="sdg-input" value={editForm.firstName} onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="sdg-label" htmlFor="edit-booking-lastname">
+                      Nom
+                    </label>
+                    <input id="edit-booking-lastname" className="sdg-input" value={editForm.lastName} onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })} />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <label className="sdg-label" htmlFor="edit-booking-phone">
+                    Téléphone
+                  </label>
+                  <input id="edit-booking-phone" className="sdg-input" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
+                </div>
+                <div className="mt-3">
+                  <label className="sdg-label" htmlFor="edit-booking-residence">
+                    Adresse de résidence principale
+                  </label>
+                  <textarea
+                    id="edit-booking-residence"
+                    className="sdg-input min-h-20"
+                    value={editForm.residenceAddress}
+                    onChange={(e) => setEditForm({ ...editForm, residenceAddress: e.target.value })}
+                  />
+                </div>
+                <div className="mt-4">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={editForm.platformEnabled}
+                      onChange={(e) => {
+                        const enabled = e.target.checked;
+                        if (!enabled) {
+                          setEditFile(null);
+                          setEditPreview((current) => {
+                            if (current?.startsWith("blob:")) URL.revokeObjectURL(current);
+                            return null;
+                          });
+                        } else if (editForm.hasImage) {
+                          setEditPreview(`/api/admin/bookings/${editForm.id}/platform-image`);
+                        }
+                        setEditForm({ ...editForm, platformEnabled: enabled, platform: editForm.platform || DEFAULT_BOOKING_PLATFORM });
+                      }}
+                    />
+                    Plateforme
+                  </label>
+                  {editForm.platformEnabled ? (
+                    <>
+                      <select
+                        className="sdg-input mt-2"
+                        aria-label="Plateforme de location"
+                        value={editForm.platform}
+                        onChange={(e) => setEditForm({ ...editForm, platform: e.target.value })}
+                      >
+                        <optgroup label="Principales">
+                          {MAIN_BOOKING_PLATFORMS.map((name) => (
+                            <option key={name} value={name}>
+                              {name}
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Autres">
+                          {OTHER_BOOKING_PLATFORMS.map((name) => (
+                            <option key={name} value={name}>
+                              {name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      </select>
+                      <label className="sdg-label mt-3" htmlFor="edit-booking-platform-image">
+                        Image liée à la réservation
+                      </label>
+                      <input
+                        id="edit-booking-platform-image"
+                        className="mt-1 block w-full text-sm text-slate-700"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] ?? null;
+                          setEditFile(file);
+                          setEditPreview((current) => {
+                            if (current?.startsWith("blob:")) URL.revokeObjectURL(current);
+                            return file ? URL.createObjectURL(file) : editForm.hasImage ? `/api/admin/bookings/${editForm.id}/platform-image` : null;
+                          });
+                        }}
+                      />
+                      {editPreview ? <img src={editPreview} alt="Capture de la plateforme" className="mt-2 max-h-40 rounded-xl border border-slate-200" /> : null}
+                    </>
+                  ) : null}
+                </div>
+                <div className="mt-4">
+                  <label className="sdg-label" htmlFor="edit-booking-notes">
+                    Message (optionnel)
+                  </label>
+                  <textarea id="edit-booking-notes" className="sdg-input min-h-20" value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} />
+                </div>
+                {editError ? <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{editError}</div> : null}
+                <div className="mt-4 flex justify-end">
+                  <button type="button" className="sdg-btn-primary disabled:opacity-50" disabled={editSaving} onClick={() => void submitEditBooking()}>
+                    {editSaving ? "Enregistrement…" : "Enregistrer"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {bookingModalId && (
         <div
@@ -1131,9 +2413,23 @@ export function AdminCalendarPage() {
                 <div className="text-base font-extrabold tracking-tight text-slate-900">Détail réservation</div>
                 <div className="mt-1 text-sm text-slate-600">BookingId: {bookingModalId}</div>
               </div>
-              <button className="sdg-btn-soft self-end sm:self-auto" onClick={() => setBookingModalId(null)}>
-                Fermer
-              </button>
+              <div className="flex gap-2 self-end sm:self-auto">
+                {bookingModalData?.booking ? (
+                  <button
+                    type="button"
+                    className="sdg-btn-danger"
+                    onClick={() => {
+                      if (!bookingModalId || !bookingModalData?.booking) return;
+                      void deleteBooking(bookingModalId, bookingModalData.booking.status);
+                    }}
+                  >
+                    Supprimer
+                  </button>
+                ) : null}
+                <button className="sdg-btn-soft" onClick={() => setBookingModalId(null)}>
+                  Fermer
+                </button>
+              </div>
             </div>
 
             {bookingLoading ? (
@@ -1143,9 +2439,16 @@ export function AdminCalendarPage() {
                 <div className="rounded-2xl border border-slate-200 bg-white/60 p-4">
                   <div className="text-sm font-extrabold text-slate-900">Client</div>
                   <div className="mt-2 text-sm text-slate-800">
-                    <div className="font-semibold">{bookingModalData.booking.user?.profileName ?? "-"}</div>
+                    <div className="font-semibold">
+                      {[bookingModalData.booking.user?.firstName, bookingModalData.booking.user?.lastName].filter(Boolean).join(" ") ||
+                        bookingModalData.booking.user?.profileName ||
+                        "-"}
+                    </div>
                     <div>{bookingModalData.booking.user?.email ?? "-"}</div>
                     <div>{bookingModalData.booking.user?.phone ?? "-"}</div>
+                    {bookingModalData.booking.user?.residenceAddress ? (
+                      <div className="mt-1 whitespace-pre-wrap">{bookingModalData.booking.user.residenceAddress}</div>
+                    ) : null}
                   </div>
                   <div className="mt-4 text-sm font-extrabold text-slate-900">Réservation</div>
                   <div className="mt-2 text-sm text-slate-800">
@@ -1156,6 +2459,18 @@ export function AdminCalendarPage() {
                     <div className="mt-1">
                       <span className="font-semibold">Statut:</span> {bookingModalData.booking.status}
                     </div>
+                    {bookingModalData.booking.platform ? (
+                      <div className="mt-1">
+                        <span className="font-semibold">Plateforme:</span> {bookingModalData.booking.platform}
+                      </div>
+                    ) : null}
+                    {bookingModalData.booking.platformImageType ? (
+                      <img
+                        alt="Image liée à la réservation"
+                        className="mt-3 max-h-64 rounded-xl border border-slate-200"
+                        src={`/api/admin/bookings/${bookingModalId}/platform-image`}
+                      />
+                    ) : null}
                     {bookingModalData.booking.notes ? (
                       <div className="mt-2">
                         <div className="text-xs font-extrabold text-slate-700">Message</div>

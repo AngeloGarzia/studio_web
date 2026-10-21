@@ -1,0 +1,3 @@
+ALTER TABLE "Owner" ADD COLUMN "address" TEXT;
+ALTER TABLE "Owner" ADD COLUMN "isCompany" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Owner" ADD COLUMN "companyName" TEXT;

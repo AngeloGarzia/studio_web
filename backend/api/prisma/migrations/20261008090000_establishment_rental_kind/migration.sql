@@ -1,0 +1,8 @@
+CREATE TYPE "EstablishmentRentalKind" AS ENUM ('FURNISHED_TOURISM', 'UNFURNISHED_MONTHLY');
+
+ALTER TABLE "Establishment"
+ADD COLUMN "rentalKind" "EstablishmentRentalKind" NOT NULL DEFAULT 'FURNISHED_TOURISM',
+ADD COLUMN "tenantName" TEXT,
+ADD COLUMN "tenantEmail" TEXT,
+ADD COLUMN "monthlyRentCents" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "monthlyChargesCents" INTEGER NOT NULL DEFAULT 0;

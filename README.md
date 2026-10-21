@@ -27,6 +27,15 @@ JWT_SECRET=change_me
 ADMIN_EMAIL=admin@local.dev
 ADMIN_PASSWORD=ChangeMe123!
 
+# SMTP Brevo (optionnel — sans host/user/password, les mails sont désactivés)
+MAIL_HOST=smtp-relay.brevo.com
+MAIL_PORT=587
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_SENDER=noreply@ton-domaine.fr
+MAIL_FROM_NAME=Studio des Grenadiers
+# MAIL_ADMIN_TO=admin@ton-domaine.fr
+
 # S3 (optionnel pour commencer)
 S3_REGION=eu-west-3
 S3_BUCKET=your-bucket

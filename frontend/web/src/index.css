@@ -5,6 +5,7 @@
 @layer base {
   html {
     @apply text-slate-900;
+    font-size: 17px;
     overflow-x: clip;
   }
 
@@ -83,9 +84,217 @@
     @apply text-center text-sm text-slate-600 md:text-base;
   }
 
+  /* Menu navigation — panneau sobre */
+  .sdg-nav-drawer {
+    background: #ffffff;
+    border-right: 1px solid rgb(226 232 240);
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.04), 16px 0 48px rgba(15, 23, 42, 0.12);
+  }
+
+  .sdg-nav-brand {
+    font-family: Georgia, "Times New Roman", Times, serif;
+    font-size: 1.5rem;
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: rgb(15 23 42);
+  }
+
+  .sdg-nav-link {
+    display: block;
+    border-radius: 0.5rem;
+    padding: 0.7rem 0.75rem;
+    font-size: 1.125rem;
+    line-height: 1.35;
+    font-weight: 500;
+    color: rgb(51 65 85);
+    text-decoration: none;
+    transition: background-color 120ms ease, color 120ms ease;
+  }
+
+  .sdg-nav-link:hover {
+    background: rgb(248 250 252);
+    color: rgb(15 23 42);
+  }
+
+  .sdg-nav-link-active {
+    background: rgb(236 254 255);
+    color: rgb(14 116 144);
+    font-weight: 600;
+  }
+
+  .sdg-nav-link-active:hover {
+    background: rgb(207 250 254);
+    color: rgb(14 116 144);
+  }
+
+  .sdg-nav-footer {
+    border-top: 1px solid rgb(226 232 240);
+    background: #ffffff;
+  }
+
+  .sdg-nav-user {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: rgb(71 85 105);
+    word-break: break-all;
+  }
+
+  .sdg-nav-burger {
+    display: flex;
+    height: 2.75rem;
+    width: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.75rem;
+    border: 1px solid rgb(226 232 240);
+    background: #ffffff;
+    color: rgb(30 41 59);
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
+
+  .sdg-nav-burger:hover {
+    background: rgb(248 250 252);
+    border-color: rgb(203 213 225);
+  }
+
+  .sdg-nav-bottom {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 60;
+    display: flex;
+    border-top: 1px solid rgb(226 232 240);
+    background: #ffffff;
+    box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .sdg-nav-bottom-scroll {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 0.25rem;
+    overflow-x: auto;
+    padding: 0.4rem 0.6rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sdg-nav-bottom .sdg-nav-link {
+    flex: 0 0 auto;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.8125rem;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .sdg-nav-bottom .sdg-nav-bar-btn {
+    flex: 0 0 auto;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .sdg-nav-group-btn {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .sdg-nav-bottom .sdg-nav-group-btn {
+    width: auto;
+  }
+
+  .sdg-nav-sub .sdg-nav-link {
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+  }
+
+  .sdg-nav-owner-panel {
+    position: fixed;
+    right: 0.6rem;
+    left: 0.6rem;
+    z-index: 61;
+    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    border: 1px solid rgb(226 232 240);
+    border-radius: 1rem;
+    background: #ffffff;
+    padding: 0.35rem;
+    box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.12);
+  }
+
+  .sdg-nav-owner-panel .sdg-nav-link {
+    flex: none;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.8125rem;
+    line-height: 1.2;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .sdg-shell-main {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  @media (min-width: 768px) {
+    .sdg-nav-bottom {
+      display: none;
+    }
+
+    .sdg-shell-main {
+      padding-bottom: 0;
+    }
+  }
+
   .sdg-subtitle-hero {
     @apply text-center text-base font-semibold text-water-900 md:text-lg;
     text-shadow: 0 1px 2px rgba(15, 23, 42, 0.25);
+  }
+
+  .sdg-hero-points {
+    margin-right: auto;
+    margin-left: auto;
+    max-width: 26rem;
+    list-style: none;
+    padding: 0;
+  }
+
+  .sdg-hero-points li {
+    position: relative;
+    padding-left: 1.15rem;
+    font-size: 0.9375rem;
+    line-height: 1.45;
+    font-weight: 600;
+    color: rgb(12 74 110);
+  }
+
+  .sdg-hero-points li + li {
+    margin-top: 0.35rem;
+  }
+
+  .sdg-hero-points li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 0.38rem;
+    height: 0.38rem;
+    border-radius: 999px;
+    background: rgb(14 116 144);
+  }
+
+  @media (min-width: 768px) {
+    .sdg-hero-points li {
+      font-size: 1.0625rem;
+    }
   }
 
   /** Titre bloc promos accueil : bleu clair uni + clignotement d’opacité */
@@ -158,19 +367,87 @@
   }
 
   .fc .fc-header-toolbar {
+    display: flex;
     flex-wrap: wrap;
-    row-gap: 0.5rem;
-    column-gap: 0.5rem;
+    align-items: center;
+    justify-content: space-between;
+    row-gap: 0.75rem;
+    column-gap: 1rem;
   }
 
   .fc .fc-toolbar-chunk {
+    display: flex;
+    flex: 1 1 auto;
     flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-width: min-content;
+  }
+
+  .fc .fc-toolbar-chunk:empty {
+    display: none;
+  }
+
+  .fc .fc-toolbar-chunk:first-child {
+    justify-content: flex-start;
+  }
+
+  .fc .fc-toolbar-chunk:last-child {
+    justify-content: flex-end;
+  }
+
+  /* L’espace entre boutons vient de gap, pas des marges négatives du groupe FullCalendar. */
+  .fc .fc-toolbar-chunk > * {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .fc .fc-button-group {
+    display: inline-flex;
+    flex: 0 0 auto;
+    gap: 0.5rem;
+  }
+
+  .fc .fc-button-group > .fc-button {
+    margin: 0 !important;
+    border-radius: 0.75rem !important;
+  }
+
+  .fc .fc-prev-button,
+  .fc .fc-next-button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .fc .fc-prev-button,
+  .fc .fc-next-button {
+    min-width: 2.5rem;
     justify-content: center;
   }
 
   .fc .fc-toolbar-title {
     @apply text-base font-extrabold tracking-tight text-slate-900 md:text-lg;
+    line-height: 1.25;
+    text-align: center;
+    white-space: normal;
   }
+
+  @media (max-width: 767px) {
+    .fc .fc-header-toolbar {
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: center;
+    }
+
+    .fc .fc-toolbar-chunk,
+    .fc .fc-toolbar-chunk:first-child,
+    .fc .fc-toolbar-chunk:last-child {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
   .fc .fc-button {
     @apply rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-semibold text-slate-800 shadow-none hover:bg-white;
   }
@@ -269,11 +546,25 @@
     background: rgba(225, 29, 72, 0.28) !important;
   }
 
-  /* Accueil : jour borne du départ (nuit indispo mais départ sans dormir ce jour) */
+  /* Accueil : jour borne du départ — diagonale : gauche = réservable, droite = nuit indispo (rose) */
   .sdg-home-calendar .fc td.sdg-home-checkout-boundary-day {
     cursor: pointer !important;
+    background: linear-gradient(
+      to bottom right,
+      rgba(255, 255, 255, 0.92) 0%,
+      rgba(224, 242, 254, 0.88) 50%,
+      rgba(225, 29, 72, 0.32) 50%,
+      rgba(225, 29, 72, 0.32) 100%
+    ) !important;
   }
   .sdg-home-calendar .fc td.sdg-home-checkout-boundary-day .fc-daygrid-day-frame {
+    background: linear-gradient(
+      to bottom right,
+      rgba(255, 255, 255, 0.92) 0%,
+      rgba(224, 242, 254, 0.88) 50%,
+      rgba(225, 29, 72, 0.32) 50%,
+      rgba(225, 29, 72, 0.32) 100%
+    ) !important;
     box-shadow: inset 0 0 0 2px rgba(5, 150, 105, 0.88) !important;
     cursor: pointer !important;
   }
@@ -301,6 +592,37 @@
   /* Admin : alerte nouvelle demande sur le bouton menu */
   .sdg-burger-attention-blink {
     animation: sdg-burger-attention-blink 0.95s ease-in-out infinite;
+  }
+}
+
+@media print {
+  .sdg-nav-burger,
+  .sdg-nav-drawer,
+  .sdg-nav-bottom,
+  .sdg-est-banner,
+  .sdg-quittance-ui {
+    display: none !important;
+  }
+
+  html,
+  body,
+  .sdg-bg {
+    background: #fff !important;
+    background-image: none !important;
+  }
+
+  .sdg-shell-main,
+  .sdg-quittance-page {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
+  .sdg-quittance-sheet {
+    margin: 0 !important;
+    max-width: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
   }
 }
 

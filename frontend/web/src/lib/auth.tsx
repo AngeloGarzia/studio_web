@@ -1,7 +1,12 @@
 import React from "react";
 import { api } from "./api";
+import type { AppRole } from "./roles";
 
-export type Me = { id: string; email: string; role: "ADMIN" | "CLIENT"; profileName?: string; phone?: string };
+/**
+ * Session via cookie httpOnly (`sdg_token`) — aucun JWT / secret en localStorage.
+ * Seul le profil courant (réponse `/api/me`) est tenu en mémoire React.
+ */
+export type Me = { id: string; email: string; role: AppRole; profileName?: string; phone?: string };
 
 type AuthState =
   | { status: "loading" }

@@ -3,6 +3,110 @@ import { api } from "../../lib/api";
 
 type AncillaryFeeRow = { id: string; label: string; priceCents: number; sortOrder: number; active: boolean };
 
+type RentalKind = "FURNISHED_TOURISM" | "UNFURNISHED_MONTHLY";
+
+type OwnerCard = { id: string; firstName: string; lastName: string; email: string | null; phone: string | null };
+
+type ActiveEstablishment = {
+  id: string;
+  name: string;
+  rentalKind: RentalKind;
+  owners: OwnerCard[];
+};
+
+function ownerLine(owner: OwnerCard) {
+  const name = `${owner.firstName} ${owner.lastName}`.trim();
+  return [name, owner.email, owner.phone].filter(Boolean).join(" · ");
+}
+
+function settingsMessage(e: unknown) {
+  const code = e && typeof e === "object" && "error" in e ? String((e as { error: unknown }).error) : "Erreur";
+  const issues =
+    e && typeof e === "object" && "issues" in e && Array.isArray((e as { issues: unknown }).issues)
+      ? (e as { issues: Array<{ path?: unknown }> }).issues
+      : [];
+  if (code === "VALIDATION_ERROR" && issues.some((issue) => Array.isArray(issue.path) && issue.path.includes("email"))) {
+    return "L’e-mail n’est pas valide. Laisse le champ vide, ou indique une adresse complète.";
+  }
+  if (code === "HAS_TENANTS") return "Retire les locataires avant de passer cet établissement en meublé de tourisme.";
+  if (code === "LAST_OWNER") return "Un établissement doit garder au moins un propriétaire.";
+  if (code === "QUITTANCE_LINKED") return "Cette personne figure sur une quittance déjà envoyée.";
+  if (code === "ALREADY_OWNER") return "Ce propriétaire est déjà rattaché à cet établissement.";
+  return code;
+}
+
+function OwnerCreateModal({
+  busy,
+  onClose,
+  onCreate
+}: {
+  busy: boolean;
+  onClose: () => void;
+  onCreate: (payload: { firstName: string; lastName: string; email: string; phone: string }) => Promise<void>;
+}) {
+  const [firstName, setFirstName] = React.useState("");
+  const [lastName, setLastName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [phone, setPhone] = React.useState("");
+  const [error, setError] = React.useState<string | null>(null);
+
+  const submit = async () => {
+    if (!lastName.trim()) {
+      setError("Indique le nom du propriétaire.");
+      return;
+    }
+    setError(null);
+    try {
+      await onCreate({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), phone: phone.trim() });
+    } catch (e: unknown) {
+      setError(settingsMessage(e));
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-900/40 p-3 sm:items-center" role="presentation" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="owner-create-title"
+        className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2 id="owner-create-title" className="text-lg font-bold text-slate-900">
+          Nouveau propriétaire
+        </h2>
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <label className="text-sm font-semibold text-slate-700">
+            Prénom
+            <input className="sdg-input mt-1" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+          </label>
+          <label className="text-sm font-semibold text-slate-700">
+            Nom
+            <input className="sdg-input mt-1" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+          </label>
+          <label className="text-sm font-semibold text-slate-700">
+            E-mail
+            <input className="sdg-input mt-1" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </label>
+          <label className="text-sm font-semibold text-slate-700">
+            Téléphone
+            <input className="sdg-input mt-1" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </label>
+        </div>
+        {error ? <p className="mt-3 text-sm font-semibold text-rose-700">{error}</p> : null}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button type="button" className="sdg-btn-primary" disabled={busy} onClick={() => void submit()}>
+            Créer et rattacher
+          </button>
+          <button type="button" className="sdg-btn-soft" disabled={busy} onClick={onClose}>
+            Annuler
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function euroInputToCents(raw: string): number | null {
   const n = Number(String(raw).trim().replace(",", "."));
   if (!Number.isFinite(n) || n < 0 || n > 100_000) return null;
@@ -94,8 +198,11 @@ function AncillaryFeeRowEditor({ row, onDone }: { row: AncillaryFeeRow; onDone: 
 export function AdminSettingsPage() {
   const [model, setModel] = React.useState<any>({
     studioName: "Studio des Grenadiers",
+    heroPoints:
+      "Réservations en direct propriétaire\nPrise de contact téléphonique\nContrat et bail envoyés par la poste\n100 % humain",
     ownerName: "",
     address: "",
+    city: "",
     phone: "",
     publicEmail: "",
     lodgingType: "",
@@ -119,6 +226,14 @@ export function AdminSettingsPage() {
   const [newAncEuro, setNewAncEuro] = React.useState("");
   const [newAncSort, setNewAncSort] = React.useState("0");
 
+  const [activeEstablishment, setActiveEstablishment] = React.useState<ActiveEstablishment | null>(null);
+  const [ownerCatalog, setOwnerCatalog] = React.useState<OwnerCard[]>([]);
+  const [rentalKind, setRentalKind] = React.useState<RentalKind>("FURNISHED_TOURISM");
+  const [ownerPick, setOwnerPick] = React.useState("");
+  const [ownerStatus, setOwnerStatus] = React.useState<string | null>(null);
+  const [ownerBusy, setOwnerBusy] = React.useState(false);
+  const [createOwnerOpen, setCreateOwnerOpen] = React.useState(false);
+
   const reloadAncillaryFees = React.useCallback(async () => {
     try {
       const rows = await api.adminAncillaryFees();
@@ -131,6 +246,82 @@ export function AdminSettingsPage() {
   React.useEffect(() => {
     void reloadAncillaryFees();
   }, [reloadAncillaryFees]);
+
+  const reloadEstablishment = React.useCallback(async () => {
+    const [rows, people] = await Promise.all([api.adminEstablishments(), api.adminOwners()]);
+    const current = rows.find((row) => row.active) ?? rows[0] ?? null;
+    setActiveEstablishment(
+      current
+        ? { id: current.id, name: current.name, rentalKind: current.rentalKind, owners: current.owners ?? [] }
+        : null
+    );
+    setRentalKind(current?.rentalKind ?? "FURNISHED_TOURISM");
+    setOwnerCatalog(people);
+    return current;
+  }, []);
+
+  React.useEffect(() => {
+    void reloadEstablishment().catch(() => undefined);
+  }, [reloadEstablishment]);
+
+  const syncPublicOwnerName = async (owners: OwnerCard[]) => {
+    const ownerName = owners
+      .map((owner) => `${owner.firstName} ${owner.lastName}`.trim())
+      .filter(Boolean)
+      .join(", ");
+    await api.adminSaveSettings({ ownerName: ownerName || null });
+    setModel((prev: { ownerName?: string }) => ({ ...prev, ownerName }));
+  };
+
+  const changeRentalKind = async (next: RentalKind) => {
+    if (!activeEstablishment) return;
+    const previous = rentalKind;
+    setRentalKind(next);
+    setOwnerStatus(null);
+    setOwnerBusy(true);
+    try {
+      await api.adminUpdateEstablishment(activeEstablishment.id, { rentalKind: next });
+      setActiveEstablishment({ ...activeEstablishment, rentalKind: next });
+    } catch (e: unknown) {
+      setRentalKind(previous);
+      setOwnerStatus(settingsMessage(e));
+    } finally {
+      setOwnerBusy(false);
+    }
+  };
+
+  const attachOwner = async (ownerId: string) => {
+    if (!activeEstablishment) return;
+    setOwnerBusy(true);
+    setOwnerStatus(null);
+    try {
+      await api.adminAttachOwner(activeEstablishment.id, ownerId);
+      const current = await reloadEstablishment();
+      const owners = current?.owners ?? [];
+      await syncPublicOwnerName(owners);
+      setOwnerPick("");
+      setCreateOwnerOpen(false);
+    } catch (e: unknown) {
+      setOwnerStatus(settingsMessage(e));
+    } finally {
+      setOwnerBusy(false);
+    }
+  };
+
+  const createAndAttachOwner = async (payload: { firstName: string; lastName: string; email: string; phone: string }) => {
+    if (!activeEstablishment) return;
+    setOwnerBusy(true);
+    try {
+      const created = await api.adminCreateOwner(payload);
+      await api.adminAttachOwner(activeEstablishment.id, created.id);
+      const current = await reloadEstablishment();
+      await syncPublicOwnerName(current?.owners ?? []);
+      setOwnerPick("");
+      setCreateOwnerOpen(false);
+    } finally {
+      setOwnerBusy(false);
+    }
+  };
 
   React.useEffect(() => {
     void (async () => {
@@ -146,20 +337,38 @@ export function AdminSettingsPage() {
 
   const save = async () => {
     setStatus(null);
+    const emailRaw = String(model.publicEmail ?? "").trim();
+    const surfaceRaw = String(model.surfaceM2 ?? "").trim();
+    const surfaceM2 = surfaceRaw === "" ? null : Number(surfaceRaw);
+    const minNights = Number(model.minNights);
+    if (emailRaw && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw)) {
+      setStatus("Erreur: l’email public doit être une adresse valide (ex. contact@domaine.fr).");
+      return;
+    }
+    if (surfaceRaw !== "" && (!Number.isFinite(surfaceM2) || (surfaceM2 as number) < 0)) {
+      setStatus("Erreur: surface (m²) invalide.");
+      return;
+    }
+    if (!Number.isFinite(minNights) || minNights < 1) {
+      setStatus("Erreur: nuits minimum invalide.");
+      return;
+    }
     try {
       await api.adminSaveSettings({
-        studioName: model.studioName,
-        ownerName: model.ownerName?.trim() ? model.ownerName.trim() : null,
-        address: model.address || null,
-        phone: model.phone || null,
-        publicEmail: model.publicEmail || null,
-        lodgingType: model.lodgingType || null,
-        surfaceM2: model.surfaceM2 ? Number(model.surfaceM2) : null,
+        studioName: String(model.studioName ?? "").trim() || "Studio des Grenadiers",
+        heroPoints: String(model.heroPoints ?? ""),
+        ownerName: String(model.ownerName ?? "").trim() || null,
+        address: String(model.address ?? "").trim() || null,
+        city: String(model.city ?? "").trim() || null,
+        phone: String(model.phone ?? "").trim() || null,
+        publicEmail: emailRaw || null,
+        lodgingType: String(model.lodgingType ?? "").trim() || null,
+        surfaceM2,
         equipments: Array.isArray(model.equipments) ? model.equipments : [],
         socialLinks: Array.isArray(model.socialLinks) ? model.socialLinks : [],
-        minNights: Number(model.minNights),
-        checkInTime: model.checkInTime || null,
-        checkOutTime: model.checkOutTime || null,
+        minNights,
+        checkInTime: String(model.checkInTime ?? "").trim() || null,
+        checkOutTime: String(model.checkOutTime ?? "").trim() || null,
         bookingAutoConfirm: Boolean(model.bookingAutoConfirm),
         maintenanceMode: Boolean(model.maintenanceMode)
       });
@@ -167,12 +376,23 @@ export function AdminSettingsPage() {
       if (s) {
         setModel((prev: any) => ({
           ...prev,
-          ...s
+          ...s,
+          ownerName: s.ownerName ?? "",
+          address: s.address ?? "",
+          city: s.city ?? "",
+          phone: s.phone ?? "",
+          publicEmail: s.publicEmail ?? "",
+          lodgingType: s.lodgingType ?? "",
+          surfaceM2: s.surfaceM2 ?? "",
+          checkInTime: s.checkInTime ?? "",
+          checkOutTime: s.checkOutTime ?? "",
+          socialLinks: Array.isArray(s.socialLinks) ? s.socialLinks : []
         }));
       }
       setStatus("Enregistré.");
     } catch (e: any) {
-      setStatus(`Erreur: ${e?.error ?? "UNKNOWN"}`);
+      const issue = Array.isArray(e?.issues) && e.issues[0] ? `${e.issues[0].path?.join(".")}: ${e.issues[0].message}` : null;
+      setStatus(`Erreur: ${issue ?? e?.error ?? "UNKNOWN"}`);
     }
   };
 
@@ -182,25 +402,96 @@ export function AdminSettingsPage() {
       <p className="sdg-subtitle mt-2">Informations publiques + règles de réservation.</p>
 
       <div className="sdg-card mt-6 p-4 md:p-5">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
+        <h2 className="text-lg font-extrabold text-slate-900">{activeEstablishment?.name ?? "Établissement"}</h2>
+        <p className="mt-1 text-sm text-slate-600">Propriétaire et mode de location de l’établissement ouvert.</p>
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-12">
           <div className="md:col-span-6">
             <label className="sdg-label">Nom du studio</label>
             <input className="sdg-input" value={model.studioName ?? ""} onChange={(e) => setModel({ ...model, studioName: e.target.value })} />
+          </div>
+          <div className="md:col-span-12">
+            <label className="sdg-label" htmlFor="settings-hero-points">
+              Points sous le titre
+            </label>
+            <textarea
+              id="settings-hero-points"
+              className="sdg-input min-h-28"
+              value={model.heroPoints ?? ""}
+              onChange={(e) => setModel({ ...model, heroPoints: e.target.value })}
+            />
+            <p className="mt-1 text-xs text-slate-500">Une ligne par point, affichés sur la page d’accueil du logement ouvert.</p>
           </div>
           <div className="md:col-span-6">
             <label className="sdg-label">Email public</label>
             <input className="sdg-input" value={model.publicEmail ?? ""} onChange={(e) => setModel({ ...model, publicEmail: e.target.value })} />
           </div>
           <div className="md:col-span-12">
-            <label className="sdg-label">Nom du propriétaire (infos pratiques publiques)</label>
-            <input
-              className="sdg-input"
-              value={model.ownerName ?? ""}
-              onChange={(e) => setModel({ ...model, ownerName: e.target.value })}
-              placeholder="Prénom et nom affichés sur la page Infos pratiques"
-            />
+            <label className="sdg-label" htmlFor="settings-rental-kind">
+              Location
+            </label>
+            <select
+              id="settings-rental-kind"
+              className="sdg-input md:max-w-md"
+              value={rentalKind}
+              disabled={ownerBusy || !activeEstablishment}
+              onChange={(e) => void changeRentalKind(e.target.value as RentalKind)}
+            >
+              <option value="FURNISHED_TOURISM">Meublé de tourisme</option>
+              <option value="UNFURNISHED_MONTHLY">Logement loué vide au mois</option>
+            </select>
+          </div>
+          <div className="md:col-span-12">
+            <p className="sdg-label">Propriétaire</p>
+            <ul className="mt-2 space-y-1">
+              {(activeEstablishment?.owners ?? []).map((owner) => (
+                <li key={owner.id} className="text-sm text-slate-800">
+                  <span className="text-slate-500">Nom</span> {owner.lastName || "—"}
+                  {" · "}
+                  <span className="text-slate-500">Prénom</span> {owner.firstName || "—"}
+                  {" · "}
+                  <span className="text-slate-500">E-mail</span> {owner.email || "—"}
+                  {" · "}
+                  <span className="text-slate-500">Tél.</span> {owner.phone || "—"}
+                </li>
+              ))}
+              {(activeEstablishment?.owners ?? []).length === 0 ? <li className="text-sm text-slate-600">Aucun propriétaire rattaché.</li> : null}
+            </ul>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <select
+                className="sdg-input"
+                value={ownerPick}
+                onChange={(e) => setOwnerPick(e.target.value)}
+                aria-label="Propriétaire existant"
+                disabled={ownerBusy || !activeEstablishment}
+              >
+                <option value="">Choisir un propriétaire existant…</option>
+                {ownerCatalog
+                  .filter((owner) => !(activeEstablishment?.owners ?? []).some((current) => current.id === owner.id))
+                  .map((owner) => (
+                    <option key={owner.id} value={owner.id}>
+                      {ownerLine(owner)}
+                    </option>
+                  ))}
+              </select>
+              <button
+                type="button"
+                className="sdg-btn-primary shrink-0"
+                disabled={ownerBusy || !ownerPick}
+                onClick={() => void attachOwner(ownerPick)}
+              >
+                Rattacher
+              </button>
+              <button type="button" className="sdg-btn-soft shrink-0" disabled={ownerBusy || !activeEstablishment} onClick={() => setCreateOwnerOpen(true)}>
+                Créer un propriétaire
+              </button>
+            </div>
+            {ownerStatus ? <p className="mt-2 text-sm font-semibold text-rose-700">{ownerStatus}</p> : null}
           </div>
           <div className="md:col-span-6">
+            <label className="sdg-label">Ville</label>
+            <input className="sdg-input" value={model.city ?? ""} maxLength={80} onChange={(e) => setModel({ ...model, city: e.target.value })} />
+          </div>
+          <div className="md:col-span-12">
             <label className="sdg-label">Adresse</label>
             <input className="sdg-input" value={model.address ?? ""} onChange={(e) => setModel({ ...model, address: e.target.value })} />
           </div>
@@ -438,6 +729,9 @@ export function AdminSettingsPage() {
         </div>
         {ancillaryStatus ? <div className="mt-3 text-sm font-semibold text-water-900">{ancillaryStatus}</div> : null}
       </div>
+      {createOwnerOpen ? (
+        <OwnerCreateModal busy={ownerBusy} onClose={() => setCreateOwnerOpen(false)} onCreate={createAndAttachOwner} />
+      ) : null}
     </div>
   );
 }

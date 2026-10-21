@@ -22,7 +22,7 @@ export function AdminAccessLogsPage() {
   return (
     <div className="sdg-container py-10">
       <h1 className="sdg-title">Admin — Logs d’accès</h1>
-      <p className="sdg-subtitle mt-2">IP / date / route / user-agent (200 derniers).</p>
+      <p className="sdg-subtitle mt-2">Date / IP masquée / route / rôle (200 derniers) — pas d’identifiants utilisateur.</p>
 
       <div className="sdg-card mt-6 overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-slate-200/70 bg-white/40 px-4 py-3">
@@ -44,8 +44,8 @@ export function AdminAccessLogsPage() {
                 <th className="px-4 py-3 font-extrabold text-slate-800">IP</th>
                 <th className="px-4 py-3 font-extrabold text-slate-800">Route</th>
                 <th className="px-4 py-3 font-extrabold text-slate-800">Méthode</th>
-                <th className="px-4 py-3 font-extrabold text-slate-800">User</th>
-                <th className="px-4 py-3 font-extrabold text-slate-800">User-Agent</th>
+                <th className="px-4 py-3 font-extrabold text-slate-800">Rôle</th>
+                <th className="px-4 py-3 font-extrabold text-slate-800">User-Agent (tronqué)</th>
               </tr>
             </thead>
             <tbody>
@@ -57,9 +57,7 @@ export function AdminAccessLogsPage() {
                     <div className="max-w-[340px] truncate">{l.path}</div>
                   </td>
                   <td className="px-4 py-3">{l.method}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {l.userRole ? `${l.userRole}${l.userId ? ` (${String(l.userId).slice(0, 8)}…)` : ""}` : "ANON"}
-                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">{l.userRole ?? "ANON"}</td>
                   <td className="px-4 py-3">
                     <div className="max-w-[360px] truncate text-xs font-semibold text-slate-600">{l.userAgent ?? ""}</div>
                   </td>

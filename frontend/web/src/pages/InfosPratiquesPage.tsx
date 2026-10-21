@@ -3,6 +3,80 @@ import { api } from "../lib/api";
 
 type Ancillary = { id: string; label: string; priceCents: number };
 
+function mapQuery(address: string) {
+  const raw = address.replace(/\s+/g, " ").trim();
+  if (/\d{5}|balaruc/i.test(raw)) return raw;
+  return `${raw}, 34540 Balaruc-les-Bains, France`;
+}
+
+function PropertyMap({ address, title }: { address: string; title: string }) {
+  const query = mapQuery(address);
+  const [point, setPoint] = React.useState<{ lat: number; lon: number } | null>(null);
+  const [failed, setFailed] = React.useState(false);
+
+  React.useEffect(() => {
+    const ctrl = new AbortController();
+    setPoint(null);
+    setFailed(false);
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`;
+    fetch(url, { signal: ctrl.signal, headers: { Accept: "application/json" } })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("map"))))
+      .then((rows: Array<{ lat?: string; lon?: string }>) => {
+        const hit = rows[0];
+        const lat = Number(hit?.lat);
+        const lon = Number(hit?.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+          setFailed(true);
+          return;
+        }
+        setPoint({ lat, lon });
+      })
+      .catch((e: unknown) => {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        setFailed(true);
+      });
+    return () => ctrl.abort();
+  }, [query]);
+
+  const delta = 0.008;
+  const src = point
+    ? `https://www.openstreetmap.org/export/embed.html?bbox=${point.lon - delta}%2C${point.lat - delta}%2C${point.lon + delta}%2C${point.lat + delta}&layer=mapnik&marker=${point.lat}%2C${point.lon}`
+    : null;
+  const openHref = point
+    ? `https://www.openstreetmap.org/?mlat=${point.lat}&mlon=${point.lon}#map=17/${point.lat}/${point.lon}`
+    : `https://www.openstreetmap.org/search?query=${encodeURIComponent(query)}`;
+
+  return (
+    <div className="sdg-card mt-6 p-4 md:p-5">
+      <div className="text-sm font-extrabold tracking-tight text-slate-900">Lieu du bien</div>
+      <p className="mt-1 text-sm text-slate-600">{title}</p>
+      <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/90 bg-slate-50">
+        {src ? (
+          <iframe
+            title={`Carte : ${query}`}
+            src={src}
+            className="h-72 w-full md:h-96"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+        ) : (
+          <div className="flex h-72 items-center justify-center px-4 text-center text-sm text-slate-600 md:h-96">
+            {failed ? "La carte n’a pas pu être chargée." : "Chargement de la carte…"}
+          </div>
+        )}
+      </div>
+      <a
+        className="mt-3 inline-flex text-sm font-semibold text-water-700 underline decoration-water-400/60 hover:text-water-900"
+        href={openHref}
+        target="_blank"
+        rel="noreferrer"
+      >
+        Ouvrir la carte
+      </a>
+    </div>
+  );
+}
+
 export function InfosPratiquesPage() {
   const [settings, setSettings] = React.useState<any>(null);
   const [fees, setFees] = React.useState<Ancillary[]>([]);
@@ -99,6 +173,8 @@ export function InfosPratiquesPage() {
           ) : null}
         </dl>
       </div>
+
+      {settings?.address?.trim() ? <PropertyMap address={settings.address.trim()} title={studio} /> : null}
 
       <div className="sdg-card mt-6 p-4 md:p-5">
         <div className="text-sm font-extrabold tracking-tight text-slate-900">Frais annexes</div>

@@ -34,14 +34,23 @@ export function AdminPortfolioPage() {
         contentType: file.type || (type === "video" ? "video/mp4" : "image/jpeg")
       });
 
-      const put = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": file.type || "application/octet-stream"
-        },
-        body: file
-      });
-      if (!put.ok) throw new Error("UPLOAD_FAILED");
+      let put: Response;
+      try {
+        put = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": file.type || "application/octet-stream"
+          },
+          body: file
+        });
+      } catch {
+        await api.adminDeleteMedia(media.id).catch(() => {});
+        throw new Error("Le stockage des médias est injoignable. Réessaie dans un instant.");
+      }
+      if (!put.ok) {
+        await api.adminDeleteMedia(media.id).catch(() => {});
+        throw new Error("UPLOAD_FAILED");
+      }
 
       if (type === "image") {
         await api.adminGenerateThumbnail(media.id).catch(() => {});
@@ -70,7 +79,7 @@ export function AdminPortfolioPage() {
   return (
     <div className="sdg-container py-10">
       <h1 className="sdg-title">Admin — Médias portfolio</h1>
-      <p className="sdg-subtitle mt-2">Upload direct vers MinIO (S3), affichage via le backend.</p>
+      <p className="sdg-subtitle mt-2">Upload via URL signée temporaire, affichage servi par le backend.</p>
 
       <div className="sdg-card mt-6 p-4 md:p-5">
         <div className="text-sm font-extrabold tracking-tight text-slate-900">Ajouter un média</div>
@@ -131,12 +140,12 @@ export function AdminPortfolioPage() {
                       it.thumbUrl ? (
                         <img src={it.thumbUrl} alt="thumb" className="h-12 w-16 rounded-lg border border-white/50 bg-white object-contain" />
                       ) : (
-                        <div className="h-12 w-16 rounded-lg border border-slate-200 bg-white/60 text-[11px] font-semibold text-slate-500 flex items-center justify-center">
+                        <div className="h-12 w-16 rounded-lg border border-slate-200 bg-white/60 text-[12px] font-semibold text-slate-500 flex items-center justify-center">
                           —
                         </div>
                       )
                     ) : (
-                      <div className="h-12 w-16 rounded-lg border border-slate-200 bg-white/60 text-[11px] font-semibold text-slate-500 flex items-center justify-center">
+                      <div className="h-12 w-16 rounded-lg border border-slate-200 bg-white/60 text-[12px] font-semibold text-slate-500 flex items-center justify-center">
                         VIDEO
                       </div>
                     )}

@@ -1,15 +1,27 @@
 import React from "react";
 import { api } from "../lib/api";
 
-type Media = { id: string; title?: string | null; type: string; publicUrl?: string | null; s3Key: string };
+/** Vue publique uniquement — jamais de clés S3 / chemins stockage. */
+type Media = {
+  id: string;
+  title?: string | null;
+  type: string;
+  url?: string | null;
+  publicUrl?: string | null;
+  thumbUrl?: string | null;
+};
 
 export function PortfolioPage() {
   const [items, setItems] = React.useState<Media[]>([]);
 
   React.useEffect(() => {
     void (async () => {
-      const m = (await api.publicPortfolio()) as any[];
-      setItems(m as any);
+      try {
+        const m = (await api.publicPortfolio()) as Media[];
+        setItems(m);
+      } catch {
+        setItems([]);
+      }
     })();
   }, []);
 
@@ -21,7 +33,7 @@ export function PortfolioPage() {
       <div className="sdg-card mt-6 p-4 md:p-5">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {items.map((it) => {
-            const url = (it as any).url ?? it.publicUrl ?? "";
+            const url = it.url ?? it.publicUrl ?? "";
             return (
               <div key={it.id} className="rounded-2xl border border-white/50 bg-white/60 p-3 shadow-lg shadow-water-900/5">
                 <div className="mb-2 text-sm font-extrabold tracking-tight text-slate-900">
@@ -51,4 +63,3 @@ export function PortfolioPage() {
     </div>
   );
 }
-

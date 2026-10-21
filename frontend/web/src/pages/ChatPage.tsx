@@ -2,6 +2,7 @@ import React from "react";
 import { io } from "socket.io-client";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { isManagerRole } from "../lib/roles";
 
 function AttentionMark({ className }: { className?: string }) {
   return (
@@ -30,7 +31,7 @@ export function ChatPage() {
   const [body, setBody] = React.useState("");
 
   const refreshAdminConvs = React.useCallback(async () => {
-    if (state.status !== "authed" || state.me.role !== "ADMIN") return;
+    if (state.status !== "authed" || !isManagerRole(state.me.role)) return;
     const c = await api.chatConversation();
     if (Array.isArray(c)) setConvs(c as ConvRow[]);
   }, [state.status, state.me.role]);
@@ -53,13 +54,13 @@ export function ChatPage() {
     void (async () => {
       const m = await api.chatMessages(activeConvId);
       setMessages(m as any[]);
-      if (state.status === "authed" && state.me.role === "ADMIN") await refreshAdminConvs();
+      if (state.status === "authed" && isManagerRole(state.me.role)) await refreshAdminConvs();
     })();
   }, [activeConvId, state.status, state.me.role, refreshAdminConvs]);
 
   React.useEffect(() => {
     if (state.status !== "authed") return;
-    if (state.me.role === "ADMIN") {
+    if (isManagerRole(state.me.role)) {
       if (convs.length === 0) return;
     } else if (!activeConvId) {
       return;
@@ -67,7 +68,7 @@ export function ChatPage() {
 
     const socket = io("", { withCredentials: true, transports: ["websocket"] });
     const rooms =
-      state.me.role === "ADMIN"
+      isManagerRole(state.me.role)
         ? convs.map((c) => `conv:${c.id}`)
         : activeConvId
           ? [`conv:${activeConvId}`]
@@ -78,7 +79,7 @@ export function ChatPage() {
       if (payload?.conversationId === activeConvId) {
         setMessages((prev) => [...prev, payload.message]);
       }
-      if (state.me.role === "ADMIN") void refreshAdminConvs();
+      if (isManagerRole(state.me.role)) void refreshAdminConvs();
     });
     return () => socket.disconnect();
   }, [activeConvId, convs, state.status, state.me.role, refreshAdminConvs]);
@@ -98,8 +99,8 @@ export function ChatPage() {
       <p className="sdg-subtitle mt-2">Pose tes questions, demande des infos, ou gère les conversations en admin.</p>
 
       <div className="sdg-card mt-6 p-4 md:p-5">
-        <div className={`grid gap-4 ${state.me.role === "ADMIN" ? "md:grid-cols-3" : "grid-cols-1"}`}>
-          {state.me.role === "ADMIN" && (
+        <div className={`grid gap-4 ${isManagerRole(state.me.role) ? "md:grid-cols-3" : "grid-cols-1"}`}>
+          {isManagerRole(state.me.role) && (
             <div className="md:col-span-1">
               <div className="text-sm font-extrabold tracking-tight text-slate-900">Conversations</div>
               <div className="mt-3 space-y-2">
@@ -133,7 +134,7 @@ export function ChatPage() {
             </div>
           )}
 
-          <div className={state.me.role === "ADMIN" ? "md:col-span-2" : ""}>
+          <div className={isManagerRole(state.me.role) ? "md:col-span-2" : ""}>
             <div className="flex items-center justify-between">
               <div className="text-sm font-extrabold tracking-tight text-slate-900">Chat</div>
               <div className="text-xs font-semibold text-slate-500">
@@ -151,7 +152,7 @@ export function ChatPage() {
                         mine ? "bg-water-600 text-white" : "bg-white text-slate-900"
                       }`}
                     >
-                      <div className={`text-[11px] font-semibold ${mine ? "text-white/80" : "text-slate-500"}`}>
+                      <div className={`text-[12px] font-semibold ${mine ? "text-white/80" : "text-slate-500"}`}>
                         {new Date(m.createdAt).toLocaleString("fr-FR")}
                       </div>
                       <div className="mt-1 whitespace-pre-wrap">{m.body}</div>

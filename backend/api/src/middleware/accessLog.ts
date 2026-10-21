@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { prisma } from "./db.js";
+import { prisma } from "../infra/db.js";
 import type { AuthedRequest } from "./auth.js";
 
 function getForwardedFor(req: Request): string | undefined {
@@ -10,7 +10,6 @@ function getForwardedFor(req: Request): string | undefined {
 }
 
 export async function logAccess(req: AuthedRequest, _res: Response, next: NextFunction) {
-  // Fire-and-forget: never block a request on logging
   void prisma.accessLog
     .create({
       data: {
@@ -28,4 +27,3 @@ export async function logAccess(req: AuthedRequest, _res: Response, next: NextFu
 
   next();
 }
-

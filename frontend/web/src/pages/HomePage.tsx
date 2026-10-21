@@ -1,4 +1,5 @@
 import React from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin, { DateClickArg } from "@fullcalendar/interaction";
@@ -6,12 +7,13 @@ import multiMonthPlugin from "@fullcalendar/multimonth";
 
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { isManagerRole } from "../lib/roles";
 
 type CalendarData = {
-  bookings: Array<{ id: string; startDate: string; endDate: string; status: string }>;
-  blocks: Array<{ id: string; startDate: string; endDate: string; reason?: string | null }>;
+  /** Plages occupées opaques (pas d’id / statut côté API publique). */
+  bookings: Array<{ startDate: string; endDate: string }>;
+  blocks: Array<{ startDate: string; endDate: string }>;
   dayConfigs?: Array<{
-    id: string;
     date: string;
     priceCents: number;
     promoPercent?: number | null;
@@ -25,6 +27,10 @@ function dayConfigSortKey(d: { date: string }): string {
   return d.date.slice(0, 10);
 }
 
+function rangeKey(r: { startDate: string; endDate: string }): string {
+  return `${r.startDate}|${r.endDate}`;
+}
+
 /** Fusionne les chargements calendrier (navigation mois / plages étendues) sans perdre les tuiles déjà connues. */
 function mergeCalendarData(prev: CalendarData | null, incoming: CalendarData): CalendarData {
   if (!prev) return incoming;
@@ -35,17 +41,17 @@ function mergeCalendarData(prev: CalendarData | null, incoming: CalendarData): C
   for (const d of incoming.dayConfigs ?? []) {
     dcMap.set(dayConfigSortKey(d), d);
   }
-  const bookingById = new Map((prev.bookings ?? []).map((b) => [b.id, b]));
+  const bookingByKey = new Map((prev.bookings ?? []).map((b) => [rangeKey(b), b]));
   for (const b of incoming.bookings ?? []) {
-    bookingById.set(b.id, b);
+    bookingByKey.set(rangeKey(b), b);
   }
-  const blockById = new Map((prev.blocks ?? []).map((b) => [b.id, b]));
+  const blockByKey = new Map((prev.blocks ?? []).map((b) => [rangeKey(b), b]));
   for (const b of incoming.blocks ?? []) {
-    blockById.set(b.id, b);
+    blockByKey.set(rangeKey(b), b);
   }
   return {
-    bookings: Array.from(bookingById.values()),
-    blocks: Array.from(blockById.values()),
+    bookings: Array.from(bookingByKey.values()),
+    blocks: Array.from(blockByKey.values()),
     dayConfigs: Array.from(dcMap.values())
   };
 }
@@ -170,6 +176,10 @@ function centsAsEuroIntegerStr(cents: number): string {
 
 export function HomePage() {
   const { state, refresh } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const catalogTick = (location.state as { catalogTick?: number } | null)?.catalogTick ?? 0;
+  const isManager = state.status === "authed" && isManagerRole(state.me.role);
 
   const greetFirstName =
     state.status === "authed"
@@ -186,9 +196,17 @@ export function HomePage() {
       : null;
 
   const [wide, setWide] = React.useState<boolean>(() => (typeof window !== "undefined" ? window.matchMedia("(min-width: 768px)").matches : false));
+  const [bookingOpen, setBookingOpen] = React.useState(false);
   const calRef = React.useRef<FullCalendar | null>(null);
   const demandeRef = React.useRef<HTMLDivElement>(null);
   const [settings, setSettings] = React.useState<any>(null);
+  const heroPoints = String(
+    settings?.heroPoints ??
+      "Réservations en direct propriétaire\nPrise de contact téléphonique\nContrat et bail envoyés par la poste\n100 % humain"
+  )
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
   const [cal, setCal] = React.useState<CalendarData | null>(null);
   const [portfolio, setPortfolio] = React.useState<PortfolioItem[]>([]);
   const [stayPromos, setStayPromos] = React.useState<PublicStayPromo[]>([]);
@@ -205,23 +223,146 @@ export function HomePage() {
   const [pricingPreviewLoading, setPricingPreviewLoading] = React.useState(false);
   const [pricingPreviewError, setPricingPreviewError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
+  /** undefined : visite pas encore lue. null : accueil anonyme, choix du logement. */
+  const [visitId, setVisitId] = React.useState<string | null | undefined>(undefined);
+  const [catalog, setCatalog] = React.useState<
+    Array<{
+      id: string;
+      name: string;
+      rentalKind: "FURNISHED_TOURISM" | "UNFURNISHED_MONTHLY";
+      summary: string;
+      city: string;
+      coverUrl: string | null;
+    }>
+  >([]);
+  const [catalogError, setCatalogError] = React.useState<string | null>(null);
+  const [choosingId, setChoosingId] = React.useState<string | null>(null);
+  /** Admin / propriétaire : true tant qu’aucun établissement n’a été ouvert depuis l’accueil. */
+  const [managerPick, setManagerPick] = React.useState(true);
+  const lodgingReady =
+    (state.status === "authed" && (!isManager || !managerPick)) ||
+    (state.status === "anon" && typeof visitId === "string");
 
   React.useEffect(() => {
+    if (state.status !== "authed" || !isManagerRole(state.me.role)) {
+      setManagerPick(true);
+      return;
+    }
+    if (catalogTick) setManagerPick(true);
+  }, [state, catalogTick]);
+
+  React.useEffect(() => {
+    if (state.status === "loading") return;
+    if (state.status === "authed") return;
+    if (catalogTick) {
+      void api.clearPublicEstablishment().finally(() => setVisitId(null));
+      return;
+    }
+    void api.publicVisit().then((visit) => setVisitId(visit.establishmentId)).catch(() => setVisitId(null));
+  }, [state.status, catalogTick]);
+
+  React.useEffect(() => {
+    if (state.status !== "anon" || visitId !== null) return;
+    void api
+      .publicEstablishments()
+      .then((rows) => {
+        setCatalog(rows);
+        setCatalogError(null);
+      })
+      .catch(() => setCatalogError("Les logements n’ont pas pu être chargés."));
+  }, [state.status, visitId]);
+
+  React.useEffect(() => {
+    if (!isManager || !managerPick) return;
+    void api
+      .adminEstablishments()
+      .then((rows) => {
+        setCatalog(
+          rows.map((row) => ({
+            id: row.id,
+            name: row.name,
+            rentalKind: row.rentalKind,
+            summary: row.summary,
+            city: row.city,
+            coverUrl: row.coverUrl
+          }))
+        );
+        setCatalogError(null);
+      })
+      .catch(() => setCatalogError("Les établissements n’ont pas pu être chargés."));
+  }, [isManager, managerPick]);
+
+  const resetLodgingSurface = () => {
+    setCal(null);
+    setPortfolio([]);
+    setSettings(null);
+    setStayPromos([]);
+    setSelect(null);
+  };
+
+  const chooseLodging = async (id: string) => {
+    setChoosingId(id);
+    setCatalogError(null);
+    try {
+      await api.choosePublicEstablishment(id);
+      resetLodgingSurface();
+      setVisitId(id);
+    } catch {
+      setCatalogError("Ce logement n’est plus disponible.");
+    } finally {
+      setChoosingId(null);
+    }
+  };
+
+  const chooseManagerLodging = async (id: string) => {
+    setChoosingId(id);
+    setCatalogError(null);
+    try {
+      await api.adminActivateEstablishment(id);
+      resetLodgingSurface();
+      setManagerPick(false);
+      navigate("/", { replace: true, state: { managerOpened: Date.now() } });
+    } catch {
+      setCatalogError("Cet établissement n’a pas pu être ouvert.");
+    } finally {
+      setChoosingId(null);
+    }
+  };
+
+  const showAllLodgings = async () => {
+    if (isManager) {
+      setManagerPick(true);
+      navigate("/", { replace: true, state: { catalogTick: Date.now() } });
+      return;
+    }
+    await api.clearPublicEstablishment();
+    setVisitId(null);
+  };
+
+  React.useEffect(() => {
+    if (!lodgingReady) return;
+    let cancelled = false;
     void (async () => {
       const s = await api.publicSettings();
+      if (cancelled) return;
       setSettings(s);
       const c = await api.publicCalendar();
+      if (cancelled) return;
       setCal(c as any);
       const p = (await api.publicPortfolio()) as any[];
+      if (cancelled) return;
       setPortfolio(p as any);
       try {
         const promos = await api.publicStayPromoRules();
-        setStayPromos(Array.isArray(promos) ? promos : []);
+        if (!cancelled) setStayPromos(Array.isArray(promos) ? promos : []);
       } catch {
-        setStayPromos([]);
+        if (!cancelled) setStayPromos([]);
       }
     })();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [lodgingReady, visitId]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -303,16 +444,16 @@ export function HomePage() {
 
   const events = React.useMemo(() => {
     if (!cal) return [];
-    const bookingEvents = (cal.bookings ?? []).map((b) => ({
-      id: `b:${b.id}`,
+    const bookingEvents = (cal.bookings ?? []).map((b, i) => ({
+      id: `b:${rangeKey(b)}:${i}`,
       start: b.startDate,
       end: b.endDate,
       allDay: true,
       display: "background" as const,
       classNames: ["sdg-home-unavail-bg"]
     }));
-    const blockEvents = (cal.blocks ?? []).map((blk) => ({
-      id: `blk:${blk.id}`,
+    const blockEvents = (cal.blocks ?? []).map((blk, i) => ({
+      id: `blk:${rangeKey(blk)}:${i}`,
       start: blk.startDate,
       end: blk.endDate,
       allDay: true,
@@ -335,19 +476,15 @@ export function HomePage() {
     return set;
   }, [cal]);
 
-  /** Nuitées déjà réservées (affichage + interaction calendrier accueil). */
+  /** Nuitées déjà réservées (affichage + interaction calendrier accueil) — statut opaque = indisponible. */
   const bookingStatusByDay = React.useMemo(() => {
     const map = new Map<string, "CONFIRMED" | "PENDING">();
     for (const b of cal?.bookings ?? []) {
-      if (b.status !== "CONFIRMED" && b.status !== "PENDING") continue;
       const start = new Date(b.startDate);
       const end = new Date(b.endDate);
       if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) continue;
       for (let d = new Date(start); d < end; d = addDaysLocal(d, 1)) {
-        const key = localDayKey(d);
-        const existing = map.get(key);
-        if (!existing) map.set(key, b.status as "CONFIRMED" | "PENDING");
-        if (b.status === "CONFIRMED") map.set(key, "CONFIRMED");
+        map.set(localDayKey(d), "CONFIRMED");
       }
     }
     return map;
@@ -623,6 +760,16 @@ export function HomePage() {
       setCal(c as any);
       await refresh();
     } catch (e: any) {
+      if (e?.error === "ACCOUNT_EXISTS_LOGIN_REQUIRED") {
+        setError("Un compte existe déjà avec cet email. Connecte-toi pour réserver, ou utilise une autre adresse.");
+        setSubmitting(false);
+        return;
+      }
+      if (e?.error === "RATE_LIMITED") {
+        setError("Trop de demandes. Réessaie dans quelques minutes.");
+        setSubmitting(false);
+        return;
+      }
       if (Array.isArray(e?.issues) && e.issues.length) {
         const first = e.issues[0];
         const where = first?.path?.length ? ` (${first.path.join(".")})` : "";
@@ -665,6 +812,61 @@ export function HomePage() {
     };
   }, []);
 
+  if (state.status === "loading" || (state.status === "anon" && visitId === undefined)) {
+    return <div className="sdg-container py-16 text-sm font-semibold text-slate-700">Chargement…</div>;
+  }
+
+  if ((state.status === "anon" && visitId === null) || (isManager && managerPick)) {
+    return (
+      <div className="sdg-container py-10">
+        <div className="flex flex-col items-center">
+          <img src="/devi.svg" alt="Dévi, la mascotte" className="mb-3 h-16 w-16 md:h-20 md:w-20" />
+          <h1 className="sdg-title sdg-title-elegant">{isManager ? "Mes établissements" : "Nos logements"}</h1>
+        </div>
+        <p className="mx-auto mt-3 max-w-xl text-center text-sm text-slate-600">
+          {isManager
+            ? "Choisis un établissement pour l’ouvrir en mode administration."
+            : "Choisis un établissement pour voir le calendrier et envoyer une demande."}
+        </p>
+        {catalogError ? <div className="mx-auto mt-4 max-w-xl rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{catalogError}</div> : null}
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {catalog.map((lodging) => (
+            <div key={lodging.id}>
+              {lodging.city ? (
+                <p className="mb-2 text-[15px] font-extrabold uppercase tracking-[0.14em] text-water-800">{lodging.city}</p>
+              ) : null}
+            <article className="sdg-card overflow-hidden p-0">
+              <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-water-100 to-sun-50">
+                {lodging.coverUrl ? <img src={lodging.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" /> : null}
+              </div>
+              <div className="p-4">
+                <h2 className="text-lg font-extrabold text-slate-900">{lodging.name}</h2>
+                <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-water-800">
+                  {lodging.rentalKind === "UNFURNISHED_MONTHLY" ? "Location au mois" : "Meublé de tourisme"}
+                </p>
+                {lodging.summary ? <p className="mt-2 text-sm leading-relaxed text-slate-700">{lodging.summary}</p> : null}
+                <button
+                  type="button"
+                  className="sdg-btn-primary mt-4"
+                  disabled={choosingId === lodging.id}
+                  onClick={() => void (isManager ? chooseManagerLodging(lodging.id) : chooseLodging(lodging.id))}
+                >
+                  {choosingId === lodging.id ? "Ouverture…" : isManager ? "Ouvrir cet établissement" : "Voir ce logement"}
+                </button>
+              </div>
+            </article>
+            </div>
+          ))}
+        </div>
+        {catalog.length === 0 && !catalogError ? (
+          <p className="mt-6 text-sm text-slate-600">
+            {isManager ? "Aucun établissement à afficher pour le moment." : "Aucun logement à afficher pour le moment."}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <>
       {submitting ? (
@@ -683,15 +885,27 @@ export function HomePage() {
         </div>
       ) : null}
       <div className="sdg-container pt-10 pb-6">
-        <h1 className="sdg-title sdg-title-elegant">{settings?.studioName ?? "Studio des Grenadiers"}</h1>
+        <div className="flex flex-col items-center">
+          <img src="/devi.svg" alt="Dévi, la mascotte" className="mb-3 h-16 w-16 md:h-20 md:w-20" />
+          <h1 className="sdg-title sdg-title-elegant">{settings?.studioName ?? "Studio des Grenadiers"}</h1>
+          {state.status === "anon" || isManager ? (
+            <button type="button" className="sdg-btn-soft mt-3" onClick={() => void showAllLodgings()}>
+              {isManager ? "Tous les établissements" : "Tous les logements"}
+            </button>
+          ) : null}
+        </div>
         {greetFirstName ? (
           <p className="mt-2 text-base font-semibold tracking-tight text-water-900 md:text-lg" lang="fr">
             Bonjour {greetFirstName}
           </p>
         ) : null}
-        <p className={`sdg-subtitle sdg-subtitle-hero ${greetFirstName ? "mt-3" : "mt-2"}`}>
-          Réservations en direct propriétaire. Prise de contact téléphonique. Contrat/bail envoyé par la poste. 100% Humain.
-        </p>
+        {heroPoints.length > 0 ? (
+          <ul className={`sdg-hero-points ${greetFirstName ? "mt-4" : "mt-3"}`}>
+            {heroPoints.map((point) => (
+              <li key={point}>{point}</li>
+            ))}
+          </ul>
+        ) : null}
 
         {stayPromos.length > 0 ? (
           <div className="sdg-card mt-6 border-emerald-200/70 bg-gradient-to-br from-emerald-50/90 via-white to-sun-50/40 p-4 md:p-5">
@@ -795,10 +1009,25 @@ export function HomePage() {
           </div>
         </div>
 
-        <div className="sdg-card mt-6 p-5">
-          <div>
-            <div className="text-sm font-extrabold tracking-tight text-slate-900">Réserver une période</div>
-            <p className="mt-2 text-center text-sm font-semibold text-slate-700 md:text-left">
+      </div>
+
+      <div className="sdg-container pb-10">
+        <div className="sdg-card sdg-home-calendar p-3 md:p-5">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-3 text-left"
+            aria-expanded={bookingOpen}
+            onClick={() => setBookingOpen((open) => !open)}
+          >
+            <span className="text-sm font-extrabold tracking-tight text-slate-900">Réserver une période</span>
+            <span aria-hidden className="text-[3.375rem] leading-none text-slate-500">
+              {bookingOpen ? "−" : "+"}
+            </span>
+          </button>
+          {bookingOpen ? (
+          <>
+          <div className="mb-4 mt-4 border-b border-slate-200/80 pb-4">
+            <p className="text-center text-sm font-semibold text-slate-700 md:text-left">
               Cliquez sur une date d'arrivée et de départ
             </p>
             <p className="mt-1.5 text-center text-sm font-semibold text-rose-700 md:text-left">
@@ -816,11 +1045,6 @@ export function HomePage() {
               </span>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="sdg-container pb-10">
-        <div className="sdg-card sdg-home-calendar p-3 md:p-5">
           <FullCalendar
             ref={calRef}
             plugins={[dayGridPlugin, interactionPlugin, multiMonthPlugin]}
@@ -831,6 +1055,11 @@ export function HomePage() {
             multiMonthMaxColumns={wide ? 2 : 1}
             multiMonthMinWidth={320}
             locale="fr"
+            headerToolbar={{
+              start: "title",
+              center: "",
+              end: "prev next"
+            }}
             height="auto"
             fixedWeekCount
             showNonCurrentDates={false}
@@ -913,7 +1142,7 @@ export function HomePage() {
                   </div>
                   {typeof priceCents === "number" ? (
                     <div
-                      className={`mt-0.5 rounded-md bg-sun-100 px-1.5 py-0.5 text-[10px] font-extrabold text-slate-900 ${
+                      className={`mt-0.5 rounded-md bg-sun-100 px-1.5 py-0.5 text-[11px] font-extrabold text-slate-900 ${
                         strikeDeparturePrice ? "ring-1 ring-slate-400/60" : ""
                       }`}
                       title={strikeDeparturePrice ? "Tarif barré : pas de nuitée ce jour (jour du départ)" : undefined}
@@ -924,17 +1153,17 @@ export function HomePage() {
                     </div>
                   ) : null}
                   {isCheckoutBoundary ? (
-                    <div className="mt-0.5 w-full rounded-md border border-emerald-500/80 bg-emerald-50/95 px-1 py-0.5 text-center text-[9px] font-extrabold leading-tight text-emerald-900 md:text-[10px]">
+                    <div className="mt-0.5 w-full rounded-md border border-emerald-500/80 bg-emerald-50/95 px-1 py-0.5 text-center text-[10px] font-extrabold leading-tight text-emerald-900 md:text-[11px]">
                       Départ possible
                     </div>
                   ) : null}
                   {(showArrival || showDeparture) && (
                     <div className="mt-0.5 w-full space-y-0.5 text-center leading-tight">
                       {showArrival ? (
-                        <div className="text-[9px] font-extrabold text-red-600 md:text-[10px]">Arrivée</div>
+                        <div className="text-[10px] font-extrabold text-red-600 md:text-[11px]">Arrivée</div>
                       ) : null}
                       {showDeparture ? (
-                        <div className="text-[9px] font-extrabold text-red-600 md:text-[10px]">Départ</div>
+                        <div className="text-[10px] font-extrabold text-red-600 md:text-[11px]">Départ</div>
                       ) : null}
                     </div>
                   )}
@@ -942,6 +1171,8 @@ export function HomePage() {
               );
             }}
           />
+          </>
+          ) : null}
         </div>
 
         {select && (
@@ -1068,14 +1299,14 @@ export function HomePage() {
                           </span>
                         ) : null}
                         <div>
-                          <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">Séjour (nuits)</div>
+                          <div className="text-[12px] font-extrabold uppercase tracking-wide text-slate-500">Séjour (nuits)</div>
                           <div className="text-xl font-extrabold tabular-nums text-slate-900">
                             {centsAsEuroIntegerStr(pricingPreview.totalCents)} €
                           </div>
                         </div>
                       </div>
                       <div>
-                        <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">Total avec frais annexes</div>
+                        <div className="text-[12px] font-extrabold uppercase tracking-wide text-slate-500">Total avec frais annexes</div>
                         <div className="text-2xl font-extrabold tabular-nums text-slate-900">
                           {centsAsEuroIntegerStr(pricingPreview.grandTotalCents ?? pricingPreview.totalCents)} €
                         </div>
@@ -1089,7 +1320,7 @@ export function HomePage() {
                         </span>
                       ) : null}
                       <div className="text-right">
-                        <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">Total estimé</div>
+                        <div className="text-[12px] font-extrabold uppercase tracking-wide text-slate-500">Total estimé</div>
                         <div className="text-2xl font-extrabold tabular-nums text-slate-900">
                           {centsAsEuroIntegerStr(pricingPreview.totalCents)} €
                         </div>
@@ -1097,7 +1328,7 @@ export function HomePage() {
                     </>
                   )}
                 </div>
-                <p className="mt-3 text-center text-[11px] leading-snug text-slate-500">
+                <p className="mt-3 text-center text-[12px] leading-snug text-slate-500">
                   Estimation indicative (prix et promos actuels). Le propriétaire confirme le détail lors de l’échange.
                 </p>
               </div>
