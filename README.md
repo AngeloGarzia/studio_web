@@ -60,14 +60,14 @@ Web: `http://localhost:5173`
 ### API (Web Service)
 
 - Root Directory : racine du monorepo
-- Build : `npm install && npm run build:api`
+- Build : `npm install --include=dev && npm run build:api`
 - Start : `npm run start:api` (applique `prisma migrate deploy` puis démarre Node)
 - Variables : `DATABASE_URL`, `JWT_SECRET`, `APP_ORIGIN` (= URL du Static Site), `ADMIN_*`, `MAIL_*`, `S3_*`, `NODE_ENV=production`
 
 ### Front (Static Site)
 
 - Root Directory : racine du monorepo
-- Build : `npm install && npm run build:web`
+- Build : `npm install --include=dev && npm run build:web`
 - Publish directory : `frontend/web/dist`
 - Variable de **build** : `VITE_API_URL=https://<ton-api>.onrender.com` (origine de l’API, sans slash final, sans `/api`)
 

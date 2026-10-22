@@ -9,6 +9,8 @@
     "build": "npm run prisma:generate -w @sdg/api && npm run build -w @sdg/api && npm run build -w @sdg/web",
     "build:api": "npm run prisma:generate -w @sdg/api && npm run build -w @sdg/api",
     "build:web": "npm run build -w @sdg/web",
+    "render:build:api": "npm install --include=dev && npm run build:api",
+    "render:build:web": "npm install --include=dev && npm run build:web",
     "start": "npm run start -w @sdg/api",
     "start:api": "npm run start -w @sdg/api"
   },
