@@ -1,6 +1,6 @@
 import React from "react";
 import { io } from "socket.io-client";
-import { api } from "../lib/api";
+import { API_BASE, api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { isManagerRole } from "../lib/roles";
 
@@ -66,7 +66,7 @@ export function ChatPage() {
       return;
     }
 
-    const socket = io("", { withCredentials: true, transports: ["websocket"] });
+    const socket = io(API_BASE || undefined, { withCredentials: true, transports: ["websocket"] });
     const rooms =
       isManagerRole(state.me.role)
         ? convs.map((c) => `conv:${c.id}`)

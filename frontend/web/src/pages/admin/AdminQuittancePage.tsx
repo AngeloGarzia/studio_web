@@ -1,5 +1,5 @@
 import React from "react";
-import { api } from "../../lib/api";
+import { api, apiUrl } from "../../lib/api";
 import { DateField } from "../../lib/dateField";
 
 /**
@@ -543,7 +543,7 @@ export function AdminQuittancePage() {
                 <img
                   alt={`Capture ${platformProof.platform}`}
                   className="mt-2 max-h-72 rounded-xl border border-slate-200"
-                  src={`/api/admin/bookings/${platformProof.bookingId}/platform-image`}
+                  src={apiUrl(`/api/admin/bookings/${platformProof.bookingId}/platform-image`)}
                 />
               </div>
             ) : (
@@ -749,7 +749,7 @@ export function AdminQuittancePage() {
                 <img
                   alt={`Capture ${platformProof.platform}`}
                   className="mt-2 max-h-80 rounded-xl border border-slate-200"
-                  src={`/api/admin/bookings/${platformProof.bookingId}/platform-image`}
+                  src={apiUrl(`/api/admin/bookings/${platformProof.bookingId}/platform-image`)}
                 />
               ) : amountsOk ? (
                 <table className="mt-2 w-full border-collapse text-left">
@@ -821,7 +821,7 @@ export function AdminQuittancePage() {
                     <img
                       alt={`Signature de ${signer.caption}`}
                       className="mx-auto mt-2 h-16 w-full object-contain"
-                      src={`/api/admin/directory/owners/${signer.id}/signature`}
+                      src={apiUrl(`/api/admin/directory/owners/${signer.id}/signature`)}
                     />
                   ) : (
                     <div className="mt-10 border-b border-slate-800" />

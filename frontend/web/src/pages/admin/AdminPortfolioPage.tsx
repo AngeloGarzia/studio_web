@@ -1,5 +1,5 @@
 import React from "react";
-import { api } from "../../lib/api";
+import { api, mediaUrl } from "../../lib/api";
 
 export function AdminPortfolioPage() {
   const [items, setItems] = React.useState<any[]>([]);
@@ -138,7 +138,7 @@ export function AdminPortfolioPage() {
                   <td className="px-4 py-3">
                     {it.type === "image" ? (
                       it.thumbUrl ? (
-                        <img src={it.thumbUrl} alt="thumb" className="h-12 w-16 rounded-lg border border-white/50 bg-white object-contain" />
+                        <img src={mediaUrl(it.thumbUrl)} alt="thumb" className="h-12 w-16 rounded-lg border border-white/50 bg-white object-contain" />
                       ) : (
                         <div className="h-12 w-16 rounded-lg border border-slate-200 bg-white/60 text-[12px] font-semibold text-slate-500 flex items-center justify-center">
                           —

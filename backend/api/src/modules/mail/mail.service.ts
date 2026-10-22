@@ -15,6 +15,8 @@ export type BookingMailPayload = {
   notes?: string | null;
   equipment?: string | null;
   ancillaryTotalCents?: number;
+  /** Copies distinctes aux propriétaires de l’établissement (envoi manuel admin). */
+  copies?: Array<{ email: string; name: string }>;
 };
 
 export type QuittanceMailPayload = {
@@ -794,48 +796,61 @@ export class MailService {
     const period = formatStayPeriodFr(p.startDate, p.endDate);
     const label = statusLabelFr(p.status);
     const subject = `Votre réservation — ${label} (${period})`;
-    const text = [
-      `Bonjour${p.guestName ? ` ${p.guestName}` : ""},`,
-      "",
-      `Voici les informations concernant votre réservation au ${owner.studioName}.`,
-      "",
-      `Séjour ${period}.`,
-      `Statut : ${label}`,
-      p.notes?.trim() ? `Message : ${p.notes.trim()}` : null,
-      p.equipment?.trim() ? `Équipement : ${p.equipment.trim()}` : null,
-      "",
-      ...ownerContactLines(owner),
-      "",
-      owner.studioName
-    ]
-      .filter((l) => l !== null)
-      .join("\n");
-
+    const guestLabel = p.guestName?.trim() || p.guestEmail;
     const kvRows: Array<{ label: string; value: string }> = [];
     if (p.notes?.trim()) kvRows.push({ label: "Message", value: p.notes.trim() });
     if (p.equipment?.trim()) kvRows.push({ label: "Équipement", value: p.equipment.trim() });
 
-    const html = renderBrandedEmail({
-      preheader: `Votre réservation — ${period}`,
-      title: "Votre réservation",
-      brandName: owner.studioName,
-      blocks: [
-        {
-          type: "lead",
-          text: `Bonjour${p.guestName ? ` ${p.guestName}` : ""}, voici les informations concernant votre séjour.`
-        },
-        { type: "period", text: period },
-        { type: "status", status: p.status, label },
-        ...(kvRows.length ? [{ type: "kv" as const, rows: kvRows }] : []),
-        ...ownerNoticeBlocks(owner)
-      ],
-      footerNote: owner.studioName
+    const recipients = [
+      {
+        email: p.guestEmail,
+        name: p.guestName?.trim() || "",
+        hello: `Bonjour${p.guestName ? ` ${p.guestName}` : ""}, voici les informations concernant votre séjour.`
+      },
+      ...(p.copies ?? []).map((copy) => ({
+        email: copy.email,
+        name: copy.name,
+        hello: `Bonjour${copy.name ? ` ${copy.name}` : ""}, voici la copie du récapitulatif de réservation adressé à ${guestLabel}.`
+      }))
+    ].filter((recipient, index, all) => {
+      const key = recipient.email.trim().toLowerCase();
+      return key.includes("@") && all.findIndex((item) => item.email.trim().toLowerCase() === key) === index;
     });
-    await this.mail.send({
-      to: [{ email: p.guestEmail, name: p.guestName ?? undefined }],
-      subject,
-      text,
-      html
-    });
+
+    for (const recipient of recipients) {
+      const text = [
+        recipient.hello,
+        "",
+        `Séjour ${period}.`,
+        `Statut : ${label}`,
+        p.notes?.trim() ? `Message : ${p.notes.trim()}` : null,
+        p.equipment?.trim() ? `Équipement : ${p.equipment.trim()}` : null,
+        "",
+        ...ownerContactLines(owner),
+        "",
+        owner.studioName
+      ]
+        .filter((line) => line !== null)
+        .join("\n");
+      const html = renderBrandedEmail({
+        preheader: `Votre réservation — ${period}`,
+        title: "Votre réservation",
+        brandName: owner.studioName,
+        blocks: [
+          { type: "lead", text: recipient.hello },
+          { type: "period", text: period },
+          { type: "status", status: p.status, label },
+          ...(kvRows.length ? [{ type: "kv" as const, rows: kvRows }] : []),
+          ...ownerNoticeBlocks(owner)
+        ],
+        footerNote: owner.studioName
+      });
+      await this.mail.send({
+        to: [{ email: recipient.email, name: recipient.name || undefined }],
+        subject,
+        text,
+        html
+      });
+    }
   }
 }

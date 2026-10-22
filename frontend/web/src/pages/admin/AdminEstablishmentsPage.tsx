@@ -1,5 +1,5 @@
 import React from "react";
-import { api } from "../../lib/api";
+import { api, mediaUrl } from "../../lib/api";
 import { DateField } from "../../lib/dateField";
 
 type RentalKind = "FURNISHED_TOURISM" | "UNFURNISHED_MONTHLY";
@@ -1028,7 +1028,7 @@ function EditEstablishmentModal({
                   className={`h-16 w-24 shrink-0 overflow-hidden rounded-xl border-2 ${coverMediaId === image.id ? "border-water-600" : "border-transparent"}`}
                   onClick={() => setCoverMediaId(image.id)}
                 >
-                  <img src={image.thumbUrl} alt={image.title?.trim() || "Photo du logement"} className="h-full w-full object-cover" />
+                  <img src={mediaUrl(image.thumbUrl)} alt={image.title?.trim() || "Photo du logement"} className="h-full w-full object-cover" />
                 </button>
               ))}
             </div>

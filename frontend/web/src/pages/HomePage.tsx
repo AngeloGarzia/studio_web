@@ -5,7 +5,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin, { DateClickArg } from "@fullcalendar/interaction";
 import multiMonthPlugin from "@fullcalendar/multimonth";
 
-import { api } from "../lib/api";
+import { api, mediaUrl } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { isManagerRole } from "../lib/roles";
 
@@ -837,7 +837,7 @@ export function HomePage() {
               ) : null}
             <article className="sdg-card overflow-hidden p-0">
               <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-water-100 to-sun-50">
-                {lodging.coverUrl ? <img src={lodging.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" /> : null}
+                {lodging.coverUrl ? <img src={mediaUrl(lodging.coverUrl)} alt="" className="absolute inset-0 h-full w-full object-cover" /> : null}
               </div>
               <div className="p-4">
                 <h2 className="text-lg font-extrabold text-slate-900">{lodging.name}</h2>
@@ -948,7 +948,7 @@ export function HomePage() {
               <div className="relative overflow-visible bg-transparent">
                 <div className="relative z-0 aspect-[16/10] w-full bg-transparent">
                   {portfolio.map((m, i) => {
-                    const src = (m as any)?.url ?? (m as any)?.publicUrl ?? "";
+                    const src = mediaUrl((m as any)?.url ?? (m as any)?.publicUrl ?? "");
                     const active = i === slide;
                     return (
                       <div

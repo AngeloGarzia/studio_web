@@ -7,7 +7,10 @@
     "dev:api": "npm run dev -w @sdg/api",
     "dev:web": "npm run dev -w @sdg/web",
     "build": "npm run prisma:generate -w @sdg/api && npm run build -w @sdg/api && npm run build -w @sdg/web",
-    "start": "npm run start -w @sdg/api"
+    "build:api": "npm run prisma:generate -w @sdg/api && npm run build -w @sdg/api",
+    "build:web": "npm run build -w @sdg/web",
+    "start": "npm run start -w @sdg/api",
+    "start:api": "npm run start -w @sdg/api"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

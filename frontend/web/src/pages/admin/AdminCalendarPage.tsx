@@ -3,7 +3,7 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin, { DateClickArg, DateSelectArg } from "@fullcalendar/interaction";
 import multiMonthPlugin from "@fullcalendar/multimonth";
-import { api } from "../../lib/api";
+import { api, apiUrl } from "../../lib/api";
 import { DEFAULT_BOOKING_PLATFORM, MAIN_BOOKING_PLATFORMS, OTHER_BOOKING_PLATFORMS } from "../../lib/bookingPlatforms";
 import { DateField } from "../../lib/dateField";
 
@@ -958,7 +958,10 @@ export function AdminCalendarPage() {
     });
     try {
       const res = await api.adminSendBookingEmail(id);
-      setMailStatusById((prev) => ({ ...prev, [id]: `Mail envoyé à ${res.to}` }));
+      const owners = res.owners?.length
+        ? ` · copie ${res.owners.length > 1 ? "aux propriétaires" : "au propriétaire"} ${res.owners.join(", ")}`
+        : "";
+      setMailStatusById((prev) => ({ ...prev, [id]: `Mail envoyé à ${res.to}${owners}` }));
     } catch (e: any) {
       const code = e?.error ?? "Erreur";
       const msg =
@@ -1072,7 +1075,7 @@ export function AdminCalendarPage() {
         notes: data.booking.notes ?? "",
         hasImage: Boolean(data.booking.platformImageType)
       });
-      if (data.booking.platformImageType) setEditPreview(`/api/admin/bookings/${id}/platform-image`);
+      if (data.booking.platformImageType) setEditPreview(apiUrl(`/api/admin/bookings/${id}/platform-image`));
     } catch (e: unknown) {
       const code = e && typeof e === "object" && "error" in e ? String((e as { error: unknown }).error) : "";
       setEditError(addBookingError(code));
@@ -2329,7 +2332,7 @@ export function AdminCalendarPage() {
                             return null;
                           });
                         } else if (editForm.hasImage) {
-                          setEditPreview(`/api/admin/bookings/${editForm.id}/platform-image`);
+                          setEditPreview(apiUrl(`/api/admin/bookings/${editForm.id}/platform-image`));
                         }
                         setEditForm({ ...editForm, platformEnabled: enabled, platform: editForm.platform || DEFAULT_BOOKING_PLATFORM });
                       }}
@@ -2372,7 +2375,11 @@ export function AdminCalendarPage() {
                           setEditFile(file);
                           setEditPreview((current) => {
                             if (current?.startsWith("blob:")) URL.revokeObjectURL(current);
-                            return file ? URL.createObjectURL(file) : editForm.hasImage ? `/api/admin/bookings/${editForm.id}/platform-image` : null;
+                            return file
+                              ? URL.createObjectURL(file)
+                              : editForm.hasImage
+                                ? apiUrl(`/api/admin/bookings/${editForm.id}/platform-image`)
+                                : null;
                           });
                         }}
                       />
@@ -2468,7 +2475,7 @@ export function AdminCalendarPage() {
                       <img
                         alt="Image liée à la réservation"
                         className="mt-3 max-h-64 rounded-xl border border-slate-200"
-                        src={`/api/admin/bookings/${bookingModalId}/platform-image`}
+                        src={apiUrl(`/api/admin/bookings/${bookingModalId}/platform-image`)}
                       />
                     ) : null}
                     {bookingModalData.booking.notes ? (

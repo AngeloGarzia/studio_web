@@ -1,9 +1,29 @@
 // Mobile-first + sécurité: pas de secret côté front.
-// On utilise un chemin relatif + proxy Vite en dev (`/api` -> backend).
+// Dev: chemin relatif + proxy Vite (`/api` -> backend).
+// Prod (front/back séparés): définir VITE_API_URL = origine de l’API, sans slash final.
 import type { AppRole } from "./roles";
 
-export const API_BASE = "";
+function normalizeApiOrigin(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  return raw.trim().replace(/\/+$/, "");
+}
+
+export const API_BASE = normalizeApiOrigin(import.meta.env.VITE_API_URL);
 const API_PREFIX = "/api";
+
+/** Chemin API absolu ou relatif (images, liens). */
+export function apiUrl(path: string): string {
+  const suffix = path.startsWith("/") ? path : `/${path}`;
+  return `${API_BASE}${suffix.startsWith("/api") ? suffix : `${API_PREFIX}${suffix}`}`;
+}
+
+/** URL média (chemin `/api/...` de l’API, ou URL absolue S3). */
+export function mediaUrl(path: string | null | undefined): string {
+  if (!path) return "";
+  if (/^https?:\/\//i.test(path) || path.startsWith("blob:") || path.startsWith("data:")) return path;
+  if (path.startsWith("/")) return `${API_BASE}${path}`;
+  return path;
+}
 
 export type ApiError = { error: string; issues?: Array<{ path?: Array<string | number>; message?: string }> };
 
@@ -267,7 +287,7 @@ export const api = {
   adminSetBookingStatus: (id: string, status: "PENDING" | "CONFIRMED" | "CANCELLED") =>
     request(`/admin/bookings/${id}/status`, { method: "POST", body: JSON.stringify({ status }) }),
   adminSendBookingEmail: (id: string) =>
-    request<{ ok: true; to: string }>(`/admin/bookings/${id}/send-email`, { method: "POST" }),
+    request<{ ok: true; to: string; owners?: string[] }>(`/admin/bookings/${id}/send-email`, { method: "POST" }),
   adminProposeBooking: (id: string, payload: { proposedStart: string; proposedEnd: string; message: string }) =>
     request<{ ok: true; to: string }>(`/admin/bookings/${id}/proposal`, { method: "POST", body: JSON.stringify(payload) }),
   adminSendQuittance: (

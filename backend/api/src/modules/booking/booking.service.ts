@@ -485,6 +485,12 @@ export class BookingService {
     if (!detail) throw new AppError("NOT_FOUND", 404);
     const email = detail.user?.email?.trim();
     if (!email) throw new AppError("NO_GUEST_EMAIL", 400);
+    const owners = await this.bookings.listOwnerContacts();
+    const copies = quittanceOwnerCopies(
+      owners.map((link) => link.owner),
+      email,
+      ""
+    );
     try {
       await this.mail.sendBookingEmailToGuest({
         bookingId: detail.id,
@@ -496,7 +502,8 @@ export class BookingService {
         guestPhone: detail.user.phone,
         notes: detail.notes,
         equipment: detail.equipment,
-        ancillaryTotalCents: detail.ancillaryTotalCents
+        ancillaryTotalCents: detail.ancillaryTotalCents,
+        copies
       });
     } catch (e: any) {
       if (e?.name === "MAIL_DISABLED" || e?.message === "MAIL_DISABLED") {
@@ -504,7 +511,7 @@ export class BookingService {
       }
       throw new AppError("MAIL_SEND_FAILED", 502);
     }
-    return { ok: true as const, to: email };
+    return { ok: true as const, to: email, owners: copies.map((copy) => copy.email) };
   }
 
   async propose(id: string, body: ProposeBookingBody) {

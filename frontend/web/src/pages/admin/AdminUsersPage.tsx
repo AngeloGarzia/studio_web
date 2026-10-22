@@ -1,5 +1,5 @@
 import React from "react";
-import { api, type DirectoryAccount, type DirectoryOwner, type DirectoryPayload, type DirectoryTenant } from "../../lib/api";
+import { api, apiUrl, type DirectoryAccount, type DirectoryOwner, type DirectoryPayload, type DirectoryTenant } from "../../lib/api";
 import { DateField } from "../../lib/dateField";
 import type { AppRole } from "../../lib/roles";
 
@@ -280,7 +280,7 @@ function AccountTools({
 }
 
 function signatureUrl(ownerId: string, version: number) {
-  return `/api/admin/directory/owners/${ownerId}/signature?v=${version}`;
+  return apiUrl(`/api/admin/directory/owners/${ownerId}/signature?v=${version}`);
 }
 
 function SignatureEditor({ ownerId, hasSignature, isCompany }: { ownerId: string; hasSignature: boolean; isCompany: boolean }) {

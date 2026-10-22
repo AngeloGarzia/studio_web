@@ -1,5 +1,5 @@
 import React from "react";
-import { api } from "../lib/api";
+import { api, mediaUrl } from "../lib/api";
 
 /** Vue publique uniquement — jamais de clés S3 / chemins stockage. */
 type Media = {
@@ -33,7 +33,7 @@ export function PortfolioPage() {
       <div className="sdg-card mt-6 p-4 md:p-5">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {items.map((it) => {
-            const url = it.url ?? it.publicUrl ?? "";
+            const url = mediaUrl(it.url ?? it.publicUrl ?? "");
             return (
               <div key={it.id} className="rounded-2xl border border-white/50 bg-white/60 p-3 shadow-lg shadow-water-900/5">
                 <div className="mb-2 text-sm font-extrabold tracking-tight text-slate-900">
