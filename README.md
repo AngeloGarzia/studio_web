@@ -71,7 +71,7 @@ Web: `http://localhost:5173`
 - Build : `npm install --include=dev && npm run build:web`
 - Publish directory : `frontend/web/dist`
 - Variable de **build** : `VITE_API_URL=https://<ton-api>.onrender.com` (origine de l’API, sans slash final, sans `/api`)
-- Rewrite SPA : `frontend/web/public/_redirects` (`/* → /index.html` 200) — indispensable pour `/connexion`, `/choisir-mot-de-passe`, etc.
+- Rewrite SPA (obligatoire) : dans le dashboard Render du Static Site → **Redirects/Rewrites** → Source `/*`, Destination `/index.html`, Action **Rewrite**. Sans ça, `/connexion` et `/choisir-mot-de-passe` renvoient 404.
 
 En local, ne pas définir `VITE_API_URL` : le proxy Vite vers le port 4000 reste utilisé.
 
