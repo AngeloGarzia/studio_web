@@ -68,12 +68,15 @@ export function LoginPage() {
 
   const submitForgot = async (e: React.FormEvent) => {
     e.preventDefault();
+    const target = forgotEmail.trim();
     setForgotBusy(true);
     setForgotError(null);
     setForgotMsg(null);
     try {
-      await api.forgotPassword(forgotEmail.trim());
-      setForgotMsg("Si un compte existe pour cet e-mail, un lien de réinitialisation vient d’être envoyé. Vérifie ta boîte de réception.");
+      await api.forgotPassword(target);
+      setForgotMsg(
+        `Si un compte existe pour « ${target} », un lien vient d’être envoyé à cette adresse. Vérifie la boîte de réception et les spams.`
+      );
     } catch (err: unknown) {
       const code = err && typeof err === "object" && "error" in err ? String((err as { error: unknown }).error) : "";
       if (code === "MAIL_DISABLED") setForgotError("L’envoi d’e-mails n’est pas configuré pour le moment.");
@@ -170,7 +173,8 @@ export function LoginPage() {
               Mot de passe oublié
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              Indique ton e-mail : tu recevras un lien pour choisir un nouveau mot de passe (valable 2 heures).
+              Le lien part uniquement vers l’adresse saisie ci‑dessous, et seulement si un compte existe déjà pour
+              celle‑ci (valable 2 heures).
             </p>
             <form onSubmit={(e) => void submitForgot(e)} className="mt-4 space-y-4">
               <div>

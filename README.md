@@ -71,6 +71,7 @@ Web: `http://localhost:5173`
 - Build : `npm install --include=dev && npm run build:web`
 - Publish directory : `frontend/web/dist`
 - Variable de **build** : `VITE_API_URL=https://<ton-api>.onrender.com` (origine de l’API, sans slash final, sans `/api`)
+- Rewrite SPA : `frontend/web/public/_redirects` (`/* → /index.html` 200) — indispensable pour `/connexion`, `/choisir-mot-de-passe`, etc.
 
 En local, ne pas définir `VITE_API_URL` : le proxy Vite vers le port 4000 reste utilisé.
 
