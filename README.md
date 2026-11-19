@@ -29,6 +29,7 @@ ADMIN_PASSWORD=ChangeMe123!
 
 # SMTP Brevo (optionnel — sans host/user/password, les mails sont désactivés)
 MAIL_HOST=smtp-relay.brevo.com
+# En local : 587. Sur Render (souvent bloqué en 587) : préférer 2525.
 MAIL_PORT=587
 MAIL_USERNAME=
 MAIL_PASSWORD=
@@ -62,7 +63,7 @@ Web: `http://localhost:5173`
 - Root Directory : racine du monorepo
 - Build : `npm install --include=dev && npm run build:api`
 - Start : `npm run start:api` (applique `prisma migrate deploy` puis démarre Node)
-- Variables : `DATABASE_URL`, `JWT_SECRET`, `APP_ORIGIN` (= URL(s) du front, séparées par des virgules ; ex. `https://balaruc.fr,https://www.balaruc.fr`), `ADMIN_*`, `MAIL_*`, `S3_*`, `NODE_ENV=production`
+- Variables : `DATABASE_URL`, `JWT_SECRET`, `APP_ORIGIN` (= URL(s) du front, séparées par des virgules ; ex. `https://balaruc.fr,https://www.balaruc.fr`), `ADMIN_*`, `MAIL_*` (sur Render : `MAIL_PORT=2525` + mêmes identifiants Brevo qu’en local), `S3_*`, `NODE_ENV=production`
 
 ### Front (Static Site)
 

@@ -164,6 +164,7 @@ export const api = {
         latitude: number | null;
         longitude: number | null;
         coverUrl: string | null;
+        ringImages: string[];
       }>
     >("/public/establishments"),
   publicVisit: () => request<{ establishmentId: string | null }>("/public/visit"),
@@ -402,6 +403,7 @@ export const api = {
         summary: string;
         coverMediaId: string | null;
         coverUrl: string | null;
+        ringImages: string[];
         active: boolean;
       }>
     >("/admin/establishments"),

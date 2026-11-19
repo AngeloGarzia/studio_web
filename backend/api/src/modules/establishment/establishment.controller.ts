@@ -48,7 +48,7 @@ export class EstablishmentController {
   });
 
   images = asyncHandler(async (req: AuthedRequest, res: Response) => {
-    return res.json(await this.establishments.publishedImages(req.auth!.sub, routeParam(req, "id")));
+    return res.json(await this.establishments.publishedImages(req.auth!.sub, req.auth!.role, routeParam(req, "id")));
   });
 
   directory = asyncHandler(async (_req: AuthedRequest, res: Response) => {
@@ -131,15 +131,15 @@ export class EstablishmentController {
 
   attachOwner = asyncHandler(async (req: AuthedRequest, res: Response) => {
     const body = AttachOwnerBodySchema.parse(req.body);
-    return res.status(201).json(await this.establishments.attachOwner(req.auth!.sub, routeParam(req, "id"), body.ownerId));
+    return res.status(201).json(await this.establishments.attachOwner(req.auth!.sub, req.auth!.role, routeParam(req, "id"), body.ownerId));
   });
 
   detachOwner = asyncHandler(async (req: AuthedRequest, res: Response) => {
-    return res.json(await this.establishments.detachOwner(req.auth!.sub, routeParam(req, "id"), routeParam(req, "ownerId")));
+    return res.json(await this.establishments.detachOwner(req.auth!.sub, req.auth!.role, routeParam(req, "id"), routeParam(req, "ownerId")));
   });
 
   list = asyncHandler(async (req: AuthedRequest, res: Response) => {
-    return res.json(await this.establishments.list(req.auth!.sub));
+    return res.json(await this.establishments.list(req.auth!.sub, req.auth!.role));
   });
 
   create = asyncHandler(async (req: AuthedRequest, res: Response) => {
@@ -148,45 +148,51 @@ export class EstablishmentController {
   });
 
   activate = asyncHandler(async (req: AuthedRequest, res: Response) => {
-    return res.json(await this.establishments.activate(req.auth!.sub, routeParam(req, "id")));
+    return res.json(await this.establishments.activate(req.auth!.sub, req.auth!.role, routeParam(req, "id")));
   });
 
   remove = asyncHandler(async (req: AuthedRequest, res: Response) => {
-    return res.json(await this.establishments.remove(req.auth!.sub, routeParam(req, "id")));
+    return res.json(await this.establishments.remove(req.auth!.sub, req.auth!.role, routeParam(req, "id")));
   });
 
   update = asyncHandler(async (req: AuthedRequest, res: Response) => {
     const body = UpdateEstablishmentBodySchema.parse(req.body);
-    return res.json(await this.establishments.update(req.auth!.sub, routeParam(req, "id"), body));
+    return res.json(await this.establishments.update(req.auth!.sub, req.auth!.role, routeParam(req, "id"), body));
   });
 
   createTenant = asyncHandler(async (req: AuthedRequest, res: Response) => {
     const body = CreateMonthlyTenantBodySchema.parse(req.body);
-    return res.status(201).json(await this.establishments.createTenant(req.auth!.sub, routeParam(req, "id"), body));
+    return res.status(201).json(await this.establishments.createTenant(req.auth!.sub, req.auth!.role, routeParam(req, "id"), body));
   });
 
   deleteTenant = asyncHandler(async (req: AuthedRequest, res: Response) => {
-    return res.json(await this.establishments.deleteTenant(req.auth!.sub, routeParam(req, "id"), routeParam(req, "tenantId")));
+    return res.json(await this.establishments.deleteTenant(req.auth!.sub, req.auth!.role, routeParam(req, "id"), routeParam(req, "tenantId")));
   });
 
   tenantFile = asyncHandler(async (req: AuthedRequest, res: Response) => {
-    return res.json(await this.establishments.tenantFile(req.auth!.sub, routeParam(req, "id"), routeParam(req, "tenantId")));
+    return res.json(await this.establishments.tenantFile(req.auth!.sub, req.auth!.role, routeParam(req, "id"), routeParam(req, "tenantId")));
   });
 
   updateTenant = asyncHandler(async (req: AuthedRequest, res: Response) => {
     const body = UpdateMonthlyTenantBodySchema.parse(req.body);
-    return res.json(await this.establishments.updateTenant(req.auth!.sub, routeParam(req, "id"), routeParam(req, "tenantId"), body));
+    return res.json(await this.establishments.updateTenant(req.auth!.sub, req.auth!.role, routeParam(req, "id"), routeParam(req, "tenantId"), body));
   });
 
   resendReceipt = asyncHandler(async (req: AuthedRequest, res: Response) => {
     return res.json(
-      await this.establishments.resendReceipt(req.auth!.sub, routeParam(req, "id"), routeParam(req, "tenantId"), routeParam(req, "receiptId"))
+      await this.establishments.resendReceipt(
+        req.auth!.sub,
+        req.auth!.role,
+        routeParam(req, "id"),
+        routeParam(req, "tenantId"),
+        routeParam(req, "receiptId")
+      )
     );
   });
 
   sendMonthlyQuittance = asyncHandler(async (req: AuthedRequest, res: Response) => {
     const body = SendMonthlyQuittanceBodySchema.parse(readPayload(req));
-    return res.json(await this.establishments.sendMonthlyQuittance(req.auth!.sub, body, extraAttachments(req)));
+    return res.json(await this.establishments.sendMonthlyQuittance(req.auth!.sub, req.auth!.role, body, extraAttachments(req)));
   });
 
   previewMonthlyQuittance = asyncHandler(async (req: AuthedRequest, res: Response) => {

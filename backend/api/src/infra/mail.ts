@@ -43,6 +43,9 @@ class SmtpMailSender implements MailSender {
       host: opts.host,
       port: opts.port,
       secure: opts.port === 465,
+      connectionTimeout: 12_000,
+      greetingTimeout: 12_000,
+      socketTimeout: 20_000,
       auth: {
         user: opts.user,
         pass: opts.pass
@@ -74,18 +77,19 @@ class SmtpMailSender implements MailSender {
     try {
       await this.transporter.sendMail(message);
     } catch (error) {
-      if (!transientMailError(error)) throw error;
+      // Un seul retry pour les coupures réseau courtes — pas pour les timeouts (sinon attente x2).
+      if (!retryableMailError(error)) throw error;
       await this.transporter.sendMail(message);
     }
   }
 }
 
-function transientMailError(error: unknown): boolean {
+function retryableMailError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const code = "code" in error ? String(error.code) : "";
-  if (["ECONNECTION", "ETIMEDOUT", "ESOCKET", "ECONNRESET", "EAI_AGAIN"].includes(code)) return true;
+  if (["ECONNRESET", "EPIPE"].includes(code)) return true;
   const responseCode = "responseCode" in error ? Number(error.responseCode) : 0;
-  return responseCode >= 400 && responseCode < 500;
+  return responseCode === 421 || responseCode === 454;
 }
 
 function emptyToUndef(v: string | undefined): string | undefined {

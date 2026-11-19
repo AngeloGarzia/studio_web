@@ -2,7 +2,10 @@ import React from "react";
 import "./RingCarousel.css";
 
 export type RingCarouselItem = {
+  /** Clé unique de la slide (ex. media id). */
   id: string;
+  /** Établissement ouvert au clic. */
+  establishmentId: string;
   name: string;
   src: string;
 };
@@ -10,7 +13,7 @@ export type RingCarouselItem = {
 type Props = {
   items: RingCarouselItem[];
   choosingId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (establishmentId: string) => void;
 };
 
 const DEG_PER_PX = 0.35;
@@ -53,6 +56,7 @@ export function RingCarousel({ items, choosingId, onSelect }: Props) {
     return () => cancelAnimationFrame(frame);
   }, [reduceMotion, paused, n]);
 
+  // Au moins 2 photos pour former une couronne lisible.
   if (n < 2) return null;
 
   const step = 360 / n;
@@ -115,16 +119,16 @@ export function RingCarousel({ items, choosingId, onSelect }: Props) {
               type="button"
               className="sdg-ring__card"
               style={{ transform: `rotateY(${i * step}deg) translateZ(var(--sdg-ring-radius))` }}
-              disabled={choosingId === item.id}
+              disabled={choosingId === item.establishmentId}
               aria-label={`Ouvrir ${item.name}`}
               onClick={() => {
                 if (dragMoved.current) return;
-                onSelect(item.id);
+                onSelect(item.establishmentId);
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  onSelect(item.id);
+                  onSelect(item.establishmentId);
                 } else if (e.key === "ArrowRight") {
                   e.preventDefault();
                   setRotation((r) => r - step);

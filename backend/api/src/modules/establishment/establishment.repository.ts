@@ -23,12 +23,18 @@ function linkedToUser(userId: string) {
   };
 }
 
+/** Admin : tous les établissements. Propriétaire : uniquement ceux liés. */
+function scopeForManager(userId: string, role: AppRole): Prisma.EstablishmentWhereInput {
+  if (role === "ADMIN") return {};
+  return linkedToUser(userId);
+}
+
 export class PrismaEstablishmentRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  listForAdmin(userId: string) {
+  listForAdmin(userId: string, role: AppRole) {
     return this.prisma.establishment.findMany({
-      where: linkedToUser(userId),
+      where: scopeForManager(userId, role),
       orderBy: { createdAt: "asc" },
       include: {
         settings: { select: { studioName: true, address: true, city: true, latitude: true, longitude: true } },
@@ -38,7 +44,7 @@ export class PrismaEstablishmentRepository {
         portfolioMedia: {
           where: { isPublished: true, type: "image" },
           orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-          take: 1,
+          take: 8,
           select: { id: true }
         }
       }
@@ -52,15 +58,15 @@ export class PrismaEstablishmentRepository {
     });
   }
 
-  findForAdmin(establishmentId: string, userId: string) {
+  findForAdmin(establishmentId: string, userId: string, role: AppRole) {
     return this.prisma.establishment.findFirst({
-      where: { id: establishmentId, ...linkedToUser(userId) }
+      where: { id: establishmentId, ...scopeForManager(userId, role) }
     });
   }
 
-  firstLinkedId(userId: string) {
+  firstLinkedId(userId: string, role: AppRole) {
     return this.prisma.establishment.findFirst({
-      where: linkedToUser(userId),
+      where: scopeForManager(userId, role),
       orderBy: { createdAt: "asc" },
       select: { id: true }
     });
@@ -130,7 +136,7 @@ export class PrismaEstablishmentRepository {
         portfolioMedia: {
           where: { isPublished: true, type: "image" },
           orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-          take: 1,
+          take: 8,
           select: { id: true }
         }
       }

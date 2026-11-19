@@ -74,9 +74,9 @@ export class EstablishmentService {
     private readonly mail: MailService
   ) {}
 
-  async list(userId: string) {
+  async list(userId: string, role: AppRole) {
     const [rows, active, signedRows] = await Promise.all([
-      this.establishments.listForAdmin(userId),
+      this.establishments.listForAdmin(userId, role),
       this.establishments.activeId(userId),
       this.establishments.ownerIdsWithSignature()
     ]);
@@ -119,6 +119,14 @@ export class EstablishmentService {
         const coverId = chosen ?? row.portfolioMedia[0]?.id ?? null;
         return coverId ? `/api/public/media/${coverId}?variant=thumb` : null;
       })(),
+      ringImages: (() => {
+        const chosen = row.coverMedia?.isPublished && row.coverMedia.type === "image" ? row.coverMedia.id : null;
+        const imageIds = [
+          ...(chosen ? [chosen] : []),
+          ...row.portfolioMedia.map((image) => image.id).filter((id) => id !== chosen)
+        ].slice(0, 8);
+        return imageIds.map((id) => `/api/public/media/${id}?variant=thumb`);
+      })(),
       active: row.id === activeId
     }));
   }
@@ -128,6 +136,10 @@ export class EstablishmentService {
     return rows.map((row) => {
       const chosen = row.coverMedia?.isPublished && row.coverMedia.type === "image" ? row.coverMedia.id : null;
       const coverId = chosen ?? row.portfolioMedia[0]?.id ?? null;
+      const imageIds = [
+        ...(chosen ? [chosen] : []),
+        ...row.portfolioMedia.map((image) => image.id).filter((id) => id !== chosen)
+      ].slice(0, 8);
       return {
         id: row.id,
         name: row.name,
@@ -137,13 +149,14 @@ export class EstablishmentService {
         address: row.settings?.address?.trim() || null,
         latitude: row.settings?.latitude ?? null,
         longitude: row.settings?.longitude ?? null,
-        coverUrl: coverId ? `/api/public/media/${coverId}?variant=thumb` : null
+        coverUrl: coverId ? `/api/public/media/${coverId}?variant=thumb` : null,
+        ringImages: imageIds.map((id) => `/api/public/media/${id}?variant=thumb`)
       };
     });
   }
 
-  async publishedImages(userId: string, establishmentId: string) {
-    const existing = await this.establishments.findForAdmin(establishmentId, userId);
+  async publishedImages(userId: string, role: AppRole, establishmentId: string) {
+    const existing = await this.establishments.findForAdmin(establishmentId, userId, role);
     if (!existing) throw new AppError("NOT_FOUND", 404);
     const images = await this.establishments.listPublishedImages(establishmentId);
     return images.map((image) => ({
@@ -481,8 +494,8 @@ export class EstablishmentService {
     return { ok: true as const };
   }
 
-  async attachOwner(userId: string, establishmentId: string, ownerId: string) {
-    const establishment = await this.establishments.findForAdmin(establishmentId, userId);
+  async attachOwner(userId: string, role: AppRole, establishmentId: string, ownerId: string) {
+    const establishment = await this.establishments.findForAdmin(establishmentId, userId, role);
     if (!establishment) throw new AppError("FORBIDDEN", 403);
     const owner = await this.establishments.findOwner(ownerId);
     if (!owner) throw new AppError("NOT_FOUND", 404);
@@ -492,8 +505,8 @@ export class EstablishmentService {
     return { ok: true as const };
   }
 
-  async detachOwner(userId: string, establishmentId: string, ownerId: string) {
-    const establishment = await this.establishments.findForAdmin(establishmentId, userId);
+  async detachOwner(userId: string, role: AppRole, establishmentId: string, ownerId: string) {
+    const establishment = await this.establishments.findForAdmin(establishmentId, userId, role);
     if (!establishment) throw new AppError("FORBIDDEN", 403);
     const existing = await this.establishments.findOwnerLink(establishmentId, ownerId);
     if (!existing) throw new AppError("NOT_FOUND", 404);
@@ -509,8 +522,8 @@ export class EstablishmentService {
     return { id: created.id, name: created.name, rentalKind: created.rentalKind, active: true };
   }
 
-  async update(userId: string, establishmentId: string, body: UpdateEstablishmentBody) {
-    const existing = await this.establishments.findForAdmin(establishmentId, userId);
+  async update(userId: string, role: AppRole, establishmentId: string, body: UpdateEstablishmentBody) {
+    const existing = await this.establishments.findForAdmin(establishmentId, userId, role);
     if (!existing) throw new AppError("FORBIDDEN", 403);
     if (body.rentalKind === "FURNISHED_TOURISM" && existing.rentalKind !== "FURNISHED_TOURISM") {
       const tenants = await this.establishments.countTenants(establishmentId);
@@ -548,16 +561,16 @@ export class EstablishmentService {
     };
   }
 
-  /** Établissement mensuel dont l’admin est membre. */
-  private async requireMonthly(userId: string, establishmentId: string) {
-    const establishment = await this.establishments.findForAdmin(establishmentId, userId);
+  /** Établissement mensuel accessible au manager (admin = tous, propriétaire = liés). */
+  private async requireMonthly(userId: string, role: AppRole, establishmentId: string) {
+    const establishment = await this.establishments.findForAdmin(establishmentId, userId, role);
     if (!establishment) throw new AppError("FORBIDDEN", 403);
     if (establishment.rentalKind !== "UNFURNISHED_MONTHLY") throw new AppError("NOT_MONTHLY_RENTAL", 409);
     return establishment;
   }
 
-  async createTenant(userId: string, establishmentId: string, body: CreateMonthlyTenantBody) {
-    await this.requireMonthly(userId, establishmentId);
+  async createTenant(userId: string, role: AppRole, establishmentId: string, body: CreateMonthlyTenantBody) {
+    await this.requireMonthly(userId, role, establishmentId);
     const trimmed = body.name.trim();
     const space = trimmed.indexOf(" ");
     const firstName = space > 0 ? trimmed.slice(0, space) : "";
@@ -573,8 +586,8 @@ export class EstablishmentService {
     });
   }
 
-  async tenantFile(userId: string, establishmentId: string, tenantId: string) {
-    const establishment = await this.requireMonthly(userId, establishmentId);
+  async tenantFile(userId: string, role: AppRole, establishmentId: string, tenantId: string) {
+    const establishment = await this.requireMonthly(userId, role, establishmentId);
     const tenant = await this.establishments.findTenant(establishmentId, tenantId);
     if (!tenant) throw new AppError("NOT_FOUND", 404);
     const dueCents = establishment.monthlyRentCents + establishment.monthlyChargesCents;
@@ -635,8 +648,8 @@ export class EstablishmentService {
     };
   }
 
-  async updateTenant(userId: string, establishmentId: string, tenantId: string, body: UpdateMonthlyTenantBody) {
-    await this.requireMonthly(userId, establishmentId);
+  async updateTenant(userId: string, role: AppRole, establishmentId: string, tenantId: string, body: UpdateMonthlyTenantBody) {
+    await this.requireMonthly(userId, role, establishmentId);
     const existing = await this.establishments.findTenant(establishmentId, tenantId);
     if (!existing) throw new AppError("NOT_FOUND", 404);
     const firstName = body.firstName.trim();
@@ -654,19 +667,19 @@ export class EstablishmentService {
       leaseStart: parseYmd(body.leaseStart)
     });
     if (updated.count === 0) throw new AppError("NOT_FOUND", 404);
-    return this.tenantFile(userId, establishmentId, tenantId);
+    return this.tenantFile(userId, role, establishmentId, tenantId);
   }
 
-  async deleteTenant(userId: string, establishmentId: string, tenantId: string) {
-    await this.requireMonthly(userId, establishmentId);
+  async deleteTenant(userId: string, role: AppRole, establishmentId: string, tenantId: string) {
+    await this.requireMonthly(userId, role, establishmentId);
     if ((await this.establishments.countQuittancesForTenant(tenantId)) > 0) throw new AppError("QUITTANCE_LINKED", 409);
     const removed = await this.establishments.deleteTenant(establishmentId, tenantId);
     if (removed.count === 0) throw new AppError("NOT_FOUND", 404);
     return { ok: true as const };
   }
 
-  async remove(userId: string, establishmentId: string) {
-    const existing = await this.establishments.findForAdmin(establishmentId, userId);
+  async remove(userId: string, role: AppRole, establishmentId: string) {
+    const existing = await this.establishments.findForAdmin(establishmentId, userId, role);
     if (!existing) throw new AppError("NOT_FOUND", 404);
     const count = await this.establishments.countEstablishments();
     if (count <= 1) throw new AppError("LAST_ESTABLISHMENT", 409);
@@ -676,8 +689,8 @@ export class EstablishmentService {
     return { ok: true as const };
   }
 
-  async activate(userId: string, establishmentId: string) {
-    const establishment = await this.establishments.findForAdmin(establishmentId, userId);
+  async activate(userId: string, role: AppRole, establishmentId: string) {
+    const establishment = await this.establishments.findForAdmin(establishmentId, userId, role);
     if (!establishment) throw new AppError("NOT_FOUND", 404);
     await this.establishments.activate(userId, establishmentId);
     return { ok: true as const, id: establishmentId };
@@ -685,13 +698,14 @@ export class EstablishmentService {
 
   async sendMonthlyQuittance(
     userId: string,
+    role: AppRole,
     body: SendMonthlyQuittanceBody,
     extraAttachments: Array<{ filename: string; content: Buffer; contentType: string }> = []
   ) {
     const active = await this.establishments.activeId(userId);
     const establishmentId = body.establishmentId || active?.activeEstablishmentId;
     if (!establishmentId) throw new AppError("NO_ESTABLISHMENT", 503);
-    const establishment = await this.establishments.findForAdmin(establishmentId, userId);
+    const establishment = await this.establishments.findForAdmin(establishmentId, userId, role);
     if (!establishment) throw new AppError("NOT_FOUND", 404);
     if (establishment.rentalKind !== "UNFURNISHED_MONTHLY") throw new AppError("NOT_MONTHLY_RENTAL", 409);
     const owners = await this.establishments.listOwnerContacts(establishmentId);
@@ -861,8 +875,8 @@ export class EstablishmentService {
     return { ok: true as const, to: recipients.map((person) => person.email).join(", "), owners: copies.map((copy) => copy.email) };
   }
 
-  async resendReceipt(userId: string, establishmentId: string, tenantId: string, receiptId: string) {
-    await this.requireMonthly(userId, establishmentId);
+  async resendReceipt(userId: string, role: AppRole, establishmentId: string, tenantId: string, receiptId: string) {
+    await this.requireMonthly(userId, role, establishmentId);
     const tenant = await this.establishments.findTenant(establishmentId, tenantId);
     if (!tenant) throw new AppError("NOT_FOUND", 404);
     const email = tenant.email?.trim();

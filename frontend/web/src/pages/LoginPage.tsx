@@ -77,6 +77,8 @@ export function LoginPage() {
     } catch (err: unknown) {
       const code = err && typeof err === "object" && "error" in err ? String((err as { error: unknown }).error) : "";
       if (code === "MAIL_DISABLED") setForgotError("L’envoi d’e-mails n’est pas configuré pour le moment.");
+      else if (code === "MAIL_SEND_FAILED")
+        setForgotError("L’e-mail n’a pas pu être envoyé (SMTP). Vérifie les variables MAIL_* sur le serveur et le dossier spam.");
       else if (code === "RATE_LIMITED") setForgotError("Trop de tentatives. Attends quelques minutes puis réessaie.");
       else setForgotError("La demande n’a pas pu être envoyée. Réessaie plus tard.");
     } finally {

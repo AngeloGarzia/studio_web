@@ -141,7 +141,9 @@ export class AuthService {
         });
       } catch (e) {
         if (e instanceof Error && e.name === "MAIL_DISABLED") throw new AppError("MAIL_DISABLED", 503);
-        throw e;
+        // eslint-disable-next-line no-console
+        console.error("[auth] forgot-password mail failed", e);
+        throw new AppError("MAIL_SEND_FAILED", 502);
       }
     }
     return { ok: true };

@@ -16,25 +16,28 @@ async function resolveEstablishmentId(req: AuthedRequest): Promise<string> {
   }
 
   if (req.auth && isManagerRole(req.auth.role)) {
-    const linked = {
-      OR: [
-        { members: { some: { userId: req.auth.sub } } },
-        { owners: { some: { owner: { userId: req.auth.sub } } } }
-      ]
-    };
+    const isAdmin = req.auth.role === "ADMIN";
+    const scope = isAdmin
+      ? {}
+      : {
+          OR: [
+            { members: { some: { userId: req.auth.sub } } },
+            { owners: { some: { owner: { userId: req.auth.sub } } } }
+          ]
+        };
     const user = await prisma.user.findUnique({
       where: { id: req.auth.sub },
       select: { activeEstablishmentId: true }
     });
     if (user?.activeEstablishmentId) {
       const active = await prisma.establishment.findFirst({
-        where: { id: user.activeEstablishmentId, ...linked },
+        where: { id: user.activeEstablishmentId, ...scope },
         select: { id: true }
       });
       if (active) return active.id;
     }
     const firstLinked = await prisma.establishment.findFirst({
-      where: linked,
+      where: scope,
       orderBy: { createdAt: "asc" },
       select: { id: true }
     });

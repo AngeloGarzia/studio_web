@@ -238,6 +238,7 @@ export function HomePage() {
       latitude: number | null;
       longitude: number | null;
       coverUrl: string | null;
+      ringImages: string[];
     }>
   >([]);
   const [catalogError, setCatalogError] = React.useState<string | null>(null);
@@ -292,7 +293,8 @@ export function HomePage() {
             address: row.address,
             latitude: row.latitude,
             longitude: row.longitude,
-            coverUrl: row.coverUrl
+            coverUrl: row.coverUrl,
+            ringImages: row.ringImages ?? (row.coverUrl ? [row.coverUrl] : [])
           }))
         );
         setCatalogError(null);
@@ -819,13 +821,17 @@ export function HomePage() {
         {catalogError ? <div className="mx-auto mt-4 max-w-xl rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{catalogError}</div> : null}
         <div className="mt-6">
           <RingCarousel
-            items={catalog
-              .filter((lodging) => Boolean(lodging.coverUrl))
-              .map((lodging) => ({
-                id: lodging.id,
+            items={catalog.flatMap((lodging) => {
+              const urls = (lodging.ringImages?.length ? lodging.ringImages : lodging.coverUrl ? [lodging.coverUrl] : []).filter(
+                Boolean
+              );
+              return urls.map((url, index) => ({
+                id: `${lodging.id}-${index}`,
+                establishmentId: lodging.id,
                 name: lodging.name,
-                src: mediaUrl(lodging.coverUrl)
-              }))}
+                src: mediaUrl(url)
+              }));
+            })}
             choosingId={choosingId}
             onSelect={(id) => void (isManager ? chooseManagerLodging(id) : chooseLodging(id))}
           />
