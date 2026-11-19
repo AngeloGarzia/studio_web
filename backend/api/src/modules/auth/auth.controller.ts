@@ -2,7 +2,7 @@ import type { Response } from "express";
 import { clearAuthCookie, setAuthCookie, type AuthedRequest } from "../../middleware/auth.js";
 import { getAnonUserId } from "../../shared/anonCookie.js";
 import { asyncHandler } from "../../shared/http.js";
-import { LoginBodySchema, RegisterBodySchema, SetupPasswordBodySchema } from "./auth.dto.js";
+import { ForgotPasswordBodySchema, LoginBodySchema, RegisterBodySchema, SetupPasswordBodySchema } from "./auth.dto.js";
 import type { AuthService } from "./auth.service.js";
 
 export class AuthController {
@@ -32,6 +32,11 @@ export class AuthController {
     const result = await this.auth.setupPassword(body);
     setAuthCookie(res, result.token);
     return res.json(result.user);
+  });
+
+  forgotPassword = asyncHandler(async (req, res) => {
+    const body = ForgotPasswordBodySchema.parse(req.body);
+    return res.json(await this.auth.forgotPassword(body));
   });
 
   me = asyncHandler(async (req: AuthedRequest, res: Response) => {

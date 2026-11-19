@@ -101,7 +101,7 @@ export function createCompositionRoot(io: SocketServer): {
   const chatRepo = new PrismaChatRepository(db);
   const accessLogRepo = new PrismaAccessLogRepository(db);
 
-  const authService = new AuthService(authRepo);
+  const authService = new AuthService(authRepo, mailService);
   const settingsService = new SettingsService(settingsRepo);
   const ancillaryFeeService = new AncillaryFeeService(ancillaryRepo);
   const stayPromoService = new StayPromoService(stayPromoRepo);

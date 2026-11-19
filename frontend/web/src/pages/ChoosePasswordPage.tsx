@@ -48,8 +48,8 @@ export function ChoosePasswordPage() {
 
   return (
     <div className="sdg-container py-12">
-      <h1 className="sdg-title">Choisir un mot de passe</h1>
-      <p className="sdg-subtitle mt-2">Ce lien remplace le mot de passe temporaire reçu par e-mail.</p>
+      <h1 className="sdg-title">Nouveau mot de passe</h1>
+      <p className="sdg-subtitle mt-2">Définis ton mot de passe via le lien reçu par e-mail.</p>
       <div className="sdg-card mx-auto mt-6 max-w-md p-5">
         <form onSubmit={(e) => void submit(e)} className="space-y-4">
           <div>

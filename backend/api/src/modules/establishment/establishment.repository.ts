@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { AppError } from "../../shared/http.js";
+import { buildMediaFolder } from "../../shared/mediaFolder.js";
 import type { AppRole } from "../../shared/roles.js";
 
 function splitPersonName(name: string | null | undefined): { firstName: string; lastName: string } {
@@ -74,6 +75,7 @@ export class PrismaEstablishmentRepository {
       const establishment = await tx.establishment.create({
         data: {
           name,
+          mediaFolder: buildMediaFolder(name),
           rentalKind,
           isDefault: false,
           members: { create: { userId } },

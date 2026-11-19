@@ -7,6 +7,7 @@ import multiMonthPlugin from "@fullcalendar/multimonth";
 
 import { EstablishmentsMap } from "../components/EstablishmentsMap";
 import { PeekCarousel } from "../components/PeekCarousel";
+import { RingCarousel } from "../components/RingCarousel";
 import { api, mediaUrl } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { isManagerRole } from "../lib/roles";
@@ -816,7 +817,20 @@ export function HomePage() {
             : "Choisis un établissement pour voir le calendrier et envoyer une demande."}
         </p>
         {catalogError ? <div className="mx-auto mt-4 max-w-xl rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{catalogError}</div> : null}
-        <div className="mt-8">
+        <div className="mt-6">
+          <RingCarousel
+            items={catalog
+              .filter((lodging) => Boolean(lodging.coverUrl))
+              .map((lodging) => ({
+                id: lodging.id,
+                name: lodging.name,
+                src: mediaUrl(lodging.coverUrl)
+              }))}
+            choosingId={choosingId}
+            onSelect={(id) => void (isManager ? chooseManagerLodging(id) : chooseLodging(id))}
+          />
+        </div>
+        <div className="mt-2">
           <EstablishmentsMap
             establishments={catalog}
             choosingId={choosingId}

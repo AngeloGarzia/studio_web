@@ -16,6 +16,7 @@ export function createAuthRouter(controller: AuthController): Router {
   r.post("/auth/logout", controller.logout);
   r.post("/auth/register", authWriteLimit, controller.register);
   r.post("/auth/setup-password", authWriteLimit, controller.setupPassword);
+  r.post("/auth/forgot-password", authWriteLimit, controller.forgotPassword);
   r.get("/me", requireAuth, controller.me);
   return r;
 }

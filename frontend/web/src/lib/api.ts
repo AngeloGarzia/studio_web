@@ -145,6 +145,8 @@ export const api = {
   login: (email: string, password: string) => request("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
   setupPassword: (token: string, password: string) =>
     request("/auth/setup-password", { method: "POST", body: JSON.stringify({ token, password }) }),
+  forgotPassword: (email: string) =>
+    request<{ ok: true }>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
   logout: () => request("/auth/logout", { method: "POST" }),
   register: (payload: { email: string; password: string; profileName?: string; phone?: string }) =>
     request("/auth/register", { method: "POST", body: JSON.stringify(payload) }),

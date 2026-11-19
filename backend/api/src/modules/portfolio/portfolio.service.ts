@@ -69,8 +69,9 @@ export class PortfolioService {
   async upload(body: UploadPortfolioBody) {
     if (!ALLOWED_CONTENT_TYPES.has(body.contentType)) throw new AppError("UNSUPPORTED_MEDIA_TYPE", 400);
 
+    const folder = await this.media.ensureMediaFolder();
     const safeName = body.filename.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 120);
-    const s3Key = `portfolio/${Date.now()}_${safeName}`;
+    const s3Key = `${folder}/${Date.now()}_${safeName}`;
 
     const created = await this.media.create({
       title: body.title,
@@ -104,7 +105,8 @@ export class PortfolioService {
         .jpeg({ quality: 78 })
         .toBuffer();
 
-      const thumbKey = `portfolio/thumbs/${media.id}.jpg`;
+      const folder = await this.media.ensureMediaFolder(media.establishmentId);
+      const thumbKey = `${folder}/thumbs/${media.id}.jpg`;
       await this.storage.putObjectBuffer(thumbKey, thumb, "image/jpeg");
       const updated = await this.media.update(media.id, { thumbS3Key: thumbKey });
       return {
@@ -122,6 +124,7 @@ export class PortfolioService {
     const targets = await this.media.findImagesMissingThumb();
     let ok = 0;
     let failed = 0;
+    const folder = await this.media.ensureMediaFolder();
 
     for (const t of targets) {
       try {
@@ -132,7 +135,7 @@ export class PortfolioService {
           .resize(360, 240, { fit: "inside", withoutEnlargement: true })
           .jpeg({ quality: 78 })
           .toBuffer();
-        const thumbKey = `portfolio/thumbs/${t.id}.jpg`;
+        const thumbKey = `${folder}/thumbs/${t.id}.jpg`;
         await this.storage.putObjectBuffer(thumbKey, thumb, "image/jpeg");
         await this.media.update(t.id, { thumbS3Key: thumbKey });
         ok++;
@@ -157,5 +160,50 @@ export class PortfolioService {
       if (media.thumbS3Key) await this.storage.deleteObject(media.thumbS3Key).catch(() => {});
     }
     return { ok: true as const };
+  }
+
+  /** Place chaque média dans `{mediaFolder}/…` et met à jour les clés en base. */
+  async reorganizeFolders() {
+    const establishments = await this.media.listEstablishmentsForMedia();
+    let moved = 0;
+    let skipped = 0;
+    let missing = 0;
+    const folders: Array<{ establishmentId: string; mediaFolder: string }> = [];
+
+    for (const est of establishments) {
+      const folder = await this.media.ensureMediaFolder(est.id);
+      folders.push({ establishmentId: est.id, mediaFolder: folder });
+      const rows = await this.media.listMediaKeysByEstablishment(est.id);
+
+      for (const row of rows) {
+        const fileName = row.s3Key.split("/").pop() || row.s3Key;
+        const nextKey = row.s3Key.startsWith(`${folder}/`) ? row.s3Key : `${folder}/${fileName}`;
+        let nextThumb = row.thumbS3Key;
+        if (row.thumbS3Key && !row.thumbS3Key.startsWith(`${folder}/`)) {
+          nextThumb = `${folder}/thumbs/${row.id}.jpg`;
+        }
+
+        if (nextKey === row.s3Key && nextThumb === row.thumbS3Key) {
+          skipped += 1;
+          continue;
+        }
+
+        const copied = await this.storage.copyObject(row.s3Key, nextKey);
+        if (!copied) {
+          missing += 1;
+          continue;
+        }
+        if (row.thumbS3Key && nextThumb && nextThumb !== row.thumbS3Key) {
+          const thumbOk = await this.storage.copyObject(row.thumbS3Key, nextThumb);
+          if (!thumbOk) nextThumb = row.thumbS3Key;
+          else await this.storage.deleteObject(row.thumbS3Key).catch(() => {});
+        }
+        if (nextKey !== row.s3Key) await this.storage.deleteObject(row.s3Key).catch(() => {});
+        await this.media.updateKeys(row.id, nextKey, nextThumb ?? null);
+        moved += 1;
+      }
+    }
+
+    return { ok: true as const, moved, skipped, missing, folders };
   }
 }

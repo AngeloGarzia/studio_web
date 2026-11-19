@@ -20,3 +20,8 @@ export const SetupPasswordBodySchema = z.object({
   password: PasswordSchema
 });
 export type SetupPasswordBody = z.infer<typeof SetupPasswordBodySchema>;
+
+export const ForgotPasswordBodySchema = z.object({
+  email: z.string().email().max(320)
+});
+export type ForgotPasswordBody = z.infer<typeof ForgotPasswordBodySchema>;

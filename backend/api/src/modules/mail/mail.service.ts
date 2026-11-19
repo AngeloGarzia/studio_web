@@ -519,6 +519,47 @@ export class MailService {
     });
   }
 
+  /** Lien pour choisir un nouveau mot de passe (oubli / reset). */
+  async sendPasswordReset(payload: { to: string; name: string; resetUrl: string }): Promise<void> {
+    if (!this.mail.enabled) {
+      const err = new Error("MAIL_DISABLED");
+      err.name = "MAIL_DISABLED";
+      throw err;
+    }
+    const owner = await this.loadOwnerContact();
+    const greeting = payload.name.trim() ? `Bonjour ${payload.name.trim()},` : "Bonjour,";
+    const text = [
+      greeting,
+      "",
+      "Une demande de réinitialisation de mot de passe a été faite pour votre compte.",
+      "Si vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail.",
+      "",
+      `Choisir un nouveau mot de passe : ${payload.resetUrl}`,
+      "",
+      "Ce lien expire dans 2 heures.",
+      "",
+      owner.studioName
+    ].join("\n");
+    const html = renderBrandedEmail({
+      preheader: "Réinitialisation de mot de passe",
+      title: "Réinitialiser votre mot de passe",
+      brandName: owner.studioName,
+      blocks: [
+        { type: "lead", text: `${greeting} une demande de réinitialisation a été reçue.` },
+        { type: "p", text: "Si vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail." },
+        { type: "cta", href: payload.resetUrl, label: "Choisir un nouveau mot de passe" },
+        { type: "p", text: "Ce lien expire dans 2 heures.", muted: true }
+      ],
+      footerNote: owner.studioName
+    });
+    await this.mail.send({
+      to: [{ email: payload.to, name: payload.name.trim() || undefined }],
+      subject: "Réinitialisation de mot de passe",
+      text,
+      html
+    });
+  }
+
   /** Quittance ou reçu, tel qu’établi par l’admin, envoyé au locataire. */
   async sendQuittance(payload: QuittanceMailPayload): Promise<void> {
     if (!this.mail.enabled) {

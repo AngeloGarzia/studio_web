@@ -30,6 +30,7 @@ export interface AuthRepository {
   recordFailedLogin(id: string, failedLoginAttempts: number, lockedUntil: Date | null): Promise<void>;
   clearLoginFailures(id: string): Promise<void>;
   findByPasswordSetupHash(hash: string): Promise<(AuthUserRow & { passwordSetupExpires: Date | null }) | null>;
+  setPasswordSetup(id: string, tokenHash: string, expires: Date): Promise<void>;
   completePasswordSetup(id: string, passwordHash: string): Promise<AuthUserRow>;
 }
 
@@ -158,6 +159,13 @@ export class PrismaAuthRepository implements AuthRepository {
         lockedUntil: true,
         passwordSetupExpires: true
       }
+    });
+  }
+
+  async setPasswordSetup(id: string, tokenHash: string, expires: Date) {
+    await this.prisma.user.update({
+      where: { id },
+      data: { passwordSetupTokenHash: tokenHash, passwordSetupExpires: expires }
     });
   }
 

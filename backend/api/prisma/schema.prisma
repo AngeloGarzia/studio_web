@@ -73,6 +73,11 @@ model Establishment {
   name      String
   /** Texte public. L’accueil anonyme en montre un résumé. */
   description String @default("")
+  /**
+   * Préfixe S3 des médias : `{NomAssaini}_{16 chiffres}`.
+   * Stable une fois attribué (ne change pas si le nom est renommé).
+   */
+  mediaFolder String? @unique
   /** Image d’accroche, parmi les photos publiées du logement. */
   coverMediaId String?         @unique
   coverMedia   PortfolioMedia? @relation("EstablishmentCover", fields: [coverMediaId], references: [id], onDelete: SetNull)

@@ -10,6 +10,7 @@ export function createPortfolioRouter(controller: PortfolioController): Router {
   r.post("/admin/portfolio/upload", requireAdmin, controller.upload);
   r.post("/admin/portfolio/:id/thumbnail", requireAdmin, controller.thumbnail);
   r.post("/admin/portfolio/thumbnails/backfill", requireAdmin, controller.backfill);
+  r.post("/admin/portfolio/reorganize-folders", requireAdmin, controller.reorganizeFolders);
   r.patch("/admin/portfolio/:id", requireAdmin, controller.update);
   r.delete("/admin/portfolio/:id", requireAdmin, controller.remove);
   return r;

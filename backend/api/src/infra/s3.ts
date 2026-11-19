@@ -1,4 +1,11 @@
-import { S3Client, DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  CopyObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getEnv } from "../config/env.js";
 
@@ -8,6 +15,8 @@ export interface ObjectStorage {
   deleteObject(key: string): Promise<void>;
   getObjectStream(key: string): Promise<{ ContentType?: string; Body?: unknown }>;
   putObjectBuffer(key: string, body: Buffer, contentType: string): Promise<void>;
+  /** Copie un objet vers une nouvelle clé (no-op si identique). Retourne false si la source est absente. */
+  copyObject(fromKey: string, toKey: string): Promise<boolean>;
 }
 
 function requireS3() {
@@ -73,11 +82,32 @@ export async function putObjectBuffer(key: string, body: Buffer, contentType: st
   );
 }
 
+export async function copyObject(fromKey: string, toKey: string): Promise<boolean> {
+  if (fromKey === toKey) return true;
+  const env = requireS3();
+  const s3 = getS3Client();
+  try {
+    await s3.send(new HeadObjectCommand({ Bucket: env.S3_BUCKET!, Key: fromKey }));
+  } catch {
+    return false;
+  }
+  const copySource = `${env.S3_BUCKET}/${fromKey.split("/").map(encodeURIComponent).join("/")}`;
+  await s3.send(
+    new CopyObjectCommand({
+      Bucket: env.S3_BUCKET!,
+      CopySource: copySource,
+      Key: toKey
+    })
+  );
+  return true;
+}
+
 export function createS3ObjectStorage(): ObjectStorage {
   return {
     presignPutObject,
     deleteObject,
     getObjectStream,
-    putObjectBuffer
+    putObjectBuffer,
+    copyObject
   };
 }

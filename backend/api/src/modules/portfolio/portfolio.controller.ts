@@ -35,6 +35,10 @@ export class PortfolioController {
     return res.json(await this.portfolio.backfillThumbnails());
   });
 
+  reorganizeFolders = asyncHandler(async (_req, res) => {
+    return res.json(await this.portfolio.reorganizeFolders());
+  });
+
   update = asyncHandler(async (req, res) => {
     const body = UpdatePortfolioBodySchema.parse(req.body);
     return res.json(await this.portfolio.update(routeParam(req, "id"), body));
