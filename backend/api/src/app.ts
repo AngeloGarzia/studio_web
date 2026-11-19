@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import { getEnv } from "./config/env.js";
+import { getAppOrigins } from "./config/appOrigin.js";
 import { optionalAuth } from "./middleware/auth.js";
 import { establishmentContext } from "./middleware/establishment.js";
 import { logAccess } from "./middleware/accessLog.js";
@@ -9,13 +9,19 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import type { AppRouters } from "./compositionRoot.js";
 
 export function createApp(routers: AppRouters) {
-  const env = getEnv();
+  const allowedOrigins = new Set(getAppOrigins());
   const app = express();
 
   app.set("trust proxy", true);
   app.use(
     cors({
-      origin: env.APP_ORIGIN,
+      origin(origin, callback) {
+        if (!origin || allowedOrigins.has(origin)) {
+          callback(null, true);
+          return;
+        }
+        callback(null, false);
+      },
       credentials: true
     })
   );

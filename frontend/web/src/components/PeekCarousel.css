@@ -1,0 +1,128 @@
+/* Carrousel peek — styles isolés (préfixe sdg-peek), mobile first */
+
+.sdg-peek {
+  width: 100%;
+  max-width: 56rem;
+  margin-inline: auto;
+}
+
+.sdg-peek--single .sdg-peek__viewport {
+  overflow: hidden;
+}
+
+.sdg-peek__viewport {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  /* Évite de bloquer le scroll vertical de la page */
+  touch-action: pan-x pan-y;
+  scrollbar-width: none;
+}
+
+.sdg-peek__viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.sdg-peek__slide {
+  flex: 0 0 88%;
+  min-width: 0;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  aspect-ratio: 16 / 10;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: transparent;
+}
+
+.sdg-peek--single .sdg-peek__slide {
+  flex: 0 0 100%;
+}
+
+.sdg-peek__media {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.sdg-peek__fallback {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+.sdg-peek__controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.sdg-peek__btn {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(14, 116, 144, 0.35);
+  background: rgba(255, 255, 255, 0.75);
+  color: #0f172a;
+  font-size: 0.875rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sdg-peek__btn:hover:not(:disabled) {
+  background: #fff;
+}
+
+.sdg-peek__btn:focus-visible {
+  outline: 2px solid #0e7490;
+  outline-offset: 2px;
+}
+
+.sdg-peek__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sdg-peek__counter {
+  min-width: 3.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 768px) {
+  .sdg-peek__viewport {
+    gap: 1.25rem;
+  }
+
+  .sdg-peek__slide {
+    flex-basis: 86%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sdg-peek__slide {
+    flex-basis: 84%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sdg-peek__viewport {
+    scroll-behavior: auto;
+  }
+}

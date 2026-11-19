@@ -30,7 +30,7 @@ export class PrismaEstablishmentRepository {
       where: linkedToUser(userId),
       orderBy: { createdAt: "asc" },
       include: {
-        settings: { select: { studioName: true, address: true, city: true } },
+        settings: { select: { studioName: true, address: true, city: true, latitude: true, longitude: true } },
         monthlyTenants: { orderBy: { name: "asc" } },
         owners: { orderBy: { createdAt: "asc" }, include: { owner: true } },
         coverMedia: { select: { id: true, type: true, isPublished: true } },
@@ -123,7 +123,7 @@ export class PrismaEstablishmentRepository {
         name: true,
         rentalKind: true,
         description: true,
-        settings: { select: { city: true } },
+        settings: { select: { city: true, address: true, latitude: true, longitude: true } },
         coverMedia: { select: { id: true, type: true, isPublished: true } },
         portfolioMedia: {
           where: { isPublished: true, type: "image" },

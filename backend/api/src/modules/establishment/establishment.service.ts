@@ -1,4 +1,4 @@
-import { getEnv } from "../../config/env.js";
+import { getPrimaryAppOrigin } from "../../config/appOrigin.js";
 import { joinTenantNames, signatureOfOwner } from "../mail/quittancePdf.js";
 import { quittanceOwnerCopies, type MailService } from "../mail/mail.service.js";
 import { AppError } from "../../shared/http.js";
@@ -108,6 +108,8 @@ export class EstablishmentService {
       })),
       address: row.settings?.address ?? null,
       city: row.settings?.city ?? "",
+      latitude: row.settings?.latitude ?? null,
+      longitude: row.settings?.longitude ?? null,
       studioName: row.settings?.studioName ?? row.name,
       description: row.description,
       summary: summarizeDescription(row.description),
@@ -132,6 +134,9 @@ export class EstablishmentService {
         rentalKind: row.rentalKind,
         summary: summarizeDescription(row.description),
         city: row.settings?.city?.trim() ?? "",
+        address: row.settings?.address?.trim() || null,
+        latitude: row.settings?.latitude ?? null,
+        longitude: row.settings?.longitude ?? null,
         coverUrl: coverId ? `/api/public/media/${coverId}?variant=thumb` : null
       };
     });
@@ -337,7 +342,7 @@ export class EstablishmentService {
     const setup = makeSetupToken();
     const expires = new Date(Date.now() + 72 * 60 * 60 * 1000);
     await this.establishments.setPasswordSetup(userId, setup.hash, expires);
-    const setupUrl = `${getEnv().APP_ORIGIN.replace(/\/$/, "")}/choisir-mot-de-passe?token=${setup.token}`;
+    const setupUrl = `${getPrimaryAppOrigin()}/choisir-mot-de-passe?token=${setup.token}`;
     try {
       await this.mail.sendAccountConfirmation({ to: email, name, password: temporaryPassword, setupUrl });
       return { ok: true as const, to: email };

@@ -1,4 +1,5 @@
 import { getEnv } from "../../config/env.js";
+import { getPrimaryAppOrigin } from "../../config/appOrigin.js";
 import type { MailSender } from "../../infra/mail.js";
 import { eurosToLetters, formatEuro, formatYmdLong } from "../../shared/eurosFr.js";
 import { renderQuittancePdf, type QuittanceSignature } from "./quittancePdf.js";
@@ -476,7 +477,7 @@ export class MailService {
       throw err;
     }
     const owner = await this.loadOwnerContact();
-    const loginUrl = `${getEnv().APP_ORIGIN.replace(/\/$/, "")}/connexion`;
+    const loginUrl = `${getPrimaryAppOrigin()}/connexion`;
     const greeting = payload.name.trim() ? `Bonjour ${payload.name.trim()},` : "Bonjour,";
     const rows = [{ label: "Identifiant", value: payload.to }];
     if (payload.password) rows.push({ label: "Mot de passe temporaire", value: payload.password });
@@ -668,7 +669,7 @@ export class MailService {
   private async sendAdminNewBooking(p: BookingMailPayload) {
     const period = formatStayPeriodFr(p.startDate, p.endDate);
     const subject = `[Réservation] Nouvelle demande ${period}`;
-    const adminUrl = `${getEnv().APP_ORIGIN}/admin/calendrier`;
+    const adminUrl = `${getPrimaryAppOrigin()}/admin/calendrier`;
     const text = [
       "Nouvelle demande de réservation",
       `Statut: ${p.status}`,

@@ -2,6 +2,7 @@ import "dotenv/config";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
 import { getEnv } from "./config/env.js";
+import { getAppOrigins } from "./config/appOrigin.js";
 import { createApp } from "./app.js";
 import { createCompositionRoot } from "./compositionRoot.js";
 import { wireSocketJoin } from "./infra/socket.js";
@@ -12,7 +13,7 @@ const env = getEnv();
 const httpServer = createServer();
 const io = new Server(httpServer, {
   cors: {
-    origin: env.APP_ORIGIN,
+    origin: getAppOrigins(),
     credentials: true
   }
 });

@@ -433,6 +433,9 @@ model SiteSettings {
   address               String?
   /** Ville affichée au-dessus de la tuile d’accueil. */
   city                  String?
+  /** Coordonnées pour la carte d’accueil (géocodage Nominatim à la sauvegarde). */
+  latitude              Float?
+  longitude             Float?
   phone                 String?
   publicEmail           String?
 

@@ -158,6 +158,9 @@ export const api = {
         rentalKind: "FURNISHED_TOURISM" | "UNFURNISHED_MONTHLY";
         summary: string;
         city: string;
+        address: string | null;
+        latitude: number | null;
+        longitude: number | null;
         coverUrl: string | null;
       }>
     >("/public/establishments"),
@@ -390,6 +393,8 @@ export const api = {
         monthlyChargesCents: number;
         address: string | null;
         city: string;
+        latitude: number | null;
+        longitude: number | null;
         studioName: string;
         description: string;
         summary: string;

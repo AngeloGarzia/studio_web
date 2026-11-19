@@ -5,6 +5,8 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin, { DateClickArg } from "@fullcalendar/interaction";
 import multiMonthPlugin from "@fullcalendar/multimonth";
 
+import { EstablishmentsMap } from "../components/EstablishmentsMap";
+import { PeekCarousel } from "../components/PeekCarousel";
 import { api, mediaUrl } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { isManagerRole } from "../lib/roles";
@@ -210,7 +212,6 @@ export function HomePage() {
   const [cal, setCal] = React.useState<CalendarData | null>(null);
   const [portfolio, setPortfolio] = React.useState<PortfolioItem[]>([]);
   const [stayPromos, setStayPromos] = React.useState<PublicStayPromo[]>([]);
-  const [slide, setSlide] = React.useState(0);
   const [select, setSelect] = React.useState<{ start: string; end: string } | null>(null);
   const [notes, setNotes] = React.useState("");
   const [equipment, setEquipment] = React.useState("");
@@ -232,6 +233,9 @@ export function HomePage() {
       rentalKind: "FURNISHED_TOURISM" | "UNFURNISHED_MONTHLY";
       summary: string;
       city: string;
+      address: string | null;
+      latitude: number | null;
+      longitude: number | null;
       coverUrl: string | null;
     }>
   >([]);
@@ -284,6 +288,9 @@ export function HomePage() {
             rentalKind: row.rentalKind,
             summary: row.summary,
             city: row.city,
+            address: row.address,
+            latitude: row.latitude,
+            longitude: row.longitude,
             coverUrl: row.coverUrl
           }))
         );
@@ -380,26 +387,6 @@ export function HomePage() {
     // eslint-disable-next-line deprecation/deprecation
     return () => mql.removeListener(onChange);
   }, []);
-
-  React.useEffect(() => {
-    if (!portfolio.length) return;
-    if (slide > portfolio.length - 1) setSlide(0);
-  }, [portfolio.length, slide]);
-
-  const nextSlide = React.useCallback(() => {
-    setSlide((s) => (portfolio.length ? (s + 1) % portfolio.length : 0));
-  }, [portfolio.length]);
-  const prevSlide = React.useCallback(() => {
-    setSlide((s) => (portfolio.length ? (s - 1 + portfolio.length) % portfolio.length : 0));
-  }, [portfolio.length]);
-
-  React.useEffect(() => {
-    if (portfolio.length <= 1) return;
-    const t = window.setInterval(() => {
-      nextSlide();
-    }, 3000);
-    return () => window.clearInterval(t);
-  }, [nextSlide, portfolio.length]);
 
   React.useEffect(() => {
     if (!select) {
@@ -829,7 +816,15 @@ export function HomePage() {
             : "Choisis un établissement pour voir le calendrier et envoyer une demande."}
         </p>
         {catalogError ? <div className="mx-auto mt-4 max-w-xl rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{catalogError}</div> : null}
-        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="mt-8">
+          <EstablishmentsMap
+            establishments={catalog}
+            choosingId={choosingId}
+            actionLabel={isManager ? "Ouvrir cet établissement" : "Voir ce logement"}
+            onSelect={(id) => void (isManager ? chooseManagerLodging(id) : chooseLodging(id))}
+          />
+        </div>
+        <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {catalog.map((lodging) => (
             <div key={lodging.id}>
               {lodging.city ? (
@@ -939,73 +934,17 @@ export function HomePage() {
           </div>
         ) : null}
 
-        {/* Tuile du portfolio (carrousel) - sans texte */}
+        {/* Portfolio — carrousel peek (mobile first) */}
         <div className="mt-6 p-0">
           <div className="mt-4">
-            {portfolio.length === 0 ? (
-              <div className="py-6 text-sm text-slate-600">Aucun média publié pour le moment.</div>
-            ) : (
-              <div className="relative overflow-visible bg-transparent">
-                <div className="relative z-0 aspect-[16/10] w-full bg-transparent">
-                  {portfolio.map((m, i) => {
-                    const src = mediaUrl((m as any)?.url ?? (m as any)?.publicUrl ?? "");
-                    const active = i === slide;
-                    return (
-                      <div
-                        key={m.id}
-                        className={`absolute inset-0 transition-opacity duration-[1600ms] ease-linear ${active ? "opacity-100" : "opacity-0"}`}
-                        aria-hidden={!active}
-                      >
-                        {m?.type === "video" ? (
-                          src ? (
-                            <video controls className="h-full w-full object-cover drop-shadow-xl">
-                              <source src={src} />
-                            </video>
-                          ) : (
-                            <div className="flex h-full items-center justify-center text-sm text-slate-600">Vidéo indisponible</div>
-                          )
-                        ) : src ? (
-                          <img src={src} alt={m?.title ?? "media"} className="h-full w-full object-contain drop-shadow-xl" />
-                        ) : (
-                          <div className="flex h-full items-center justify-center text-sm text-slate-600">Image indisponible</div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <button
-                  type="button"
-                  className="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-2xl border border-white/40 bg-white/45 px-3 py-2 text-sm font-extrabold text-slate-900 shadow hover:bg-white/70 backdrop-blur"
-                  aria-label="Précédent"
-                  onClick={prevSlide}
-                >
-                  ‹
-                </button>
-                <button
-                  type="button"
-                  className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-2xl border border-white/40 bg-white/45 px-3 py-2 text-sm font-extrabold text-slate-900 shadow hover:bg-white/70 backdrop-blur"
-                  aria-label="Suivant"
-                  onClick={nextSlide}
-                >
-                  ›
-                </button>
-
-                <div className="absolute bottom-3 left-0 right-0 z-10 flex items-center justify-center gap-2">
-                  {portfolio.map((_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      aria-label={`Aller à la slide ${i + 1}`}
-                      className={`h-2.5 w-2.5 rounded-full border border-white/70 shadow ${
-                        i === slide ? "bg-water-600" : "bg-white/70 hover:bg-white"
-                      }`}
-                      onClick={() => setSlide(i)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+            <PeekCarousel
+              items={portfolio.map((m, i) => ({
+                id: m.id,
+                src: mediaUrl(m.url ?? m.publicUrl ?? ""),
+                alt: m.title?.trim() || `Photo du logement ${i + 1}`,
+                type: m.type
+              }))}
+            />
           </div>
         </div>
 

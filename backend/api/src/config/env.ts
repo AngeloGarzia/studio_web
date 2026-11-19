@@ -3,6 +3,7 @@ import { z } from "zod";
 const EnvSchema = z.object({
   NODE_ENV: z.string().optional(),
   PORT: z.coerce.number().default(4000),
+  /** Origine(s) du front. Plusieurs URLs séparées par des virgules (CORS). La 1re sert aux liens mails. */
   APP_ORIGIN: z.string().default("http://localhost:5173"),
 
   DATABASE_URL: z.string().min(1),

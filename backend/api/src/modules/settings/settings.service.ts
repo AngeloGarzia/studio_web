@@ -1,3 +1,4 @@
+import { geocodeAddress } from "../../infra/geocode.js";
 import { DEFAULT_PUBLIC_SETTINGS, type UpdateSettingsBody } from "./settings.dto.js";
 import type { SettingsRepository } from "./settings.repository.js";
 
@@ -54,6 +55,23 @@ export class SettingsService {
     set("maintenanceMode", body.maintenanceMode);
 
     const existing = await this.settings.findFirst();
+    const nextAddress = body.address !== undefined ? body.address : (existing?.address ?? null);
+    const nextCity = body.city !== undefined ? body.city : (existing?.city ?? null);
+    const addressChanged = body.address !== undefined && body.address !== (existing?.address ?? null);
+    const cityChanged = body.city !== undefined && body.city !== (existing?.city ?? null);
+
+    if (addressChanged || cityChanged || !existing) {
+      const query = [nextAddress?.trim(), nextCity?.trim()].filter(Boolean).join(", ");
+      if (!query) {
+        data.latitude = null;
+        data.longitude = null;
+      } else {
+        const point = await geocodeAddress({ address: nextAddress, city: nextCity });
+        data.latitude = point?.latitude ?? null;
+        data.longitude = point?.longitude ?? null;
+      }
+    }
+
     if (existing) return this.settings.update(existing.id, data);
     return this.settings.create({
       studioName: body.studioName ?? "Studio des Grenadiers",
