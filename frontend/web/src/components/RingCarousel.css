@@ -60,12 +60,56 @@
   opacity: 0.85;
 }
 
-.sdg-ring__img {
+.sdg-ring__card--promo {
+  cursor: pointer;
+  background: linear-gradient(145deg, #0e7490 0%, #155e75 45%, #0f172a 100%);
+  box-shadow: 0 10px 28px rgba(14, 116, 144, 0.35);
+}
+
+.sdg-ring__img,
+.sdg-ring__fallback {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
   pointer-events: none;
+}
+
+.sdg-ring__fallback {
+  background: linear-gradient(135deg, #bae6fd, #fef08a);
+}
+
+.sdg-ring__promo {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.55rem 0.5rem;
+  text-align: center;
+  pointer-events: none;
+}
+
+.sdg-ring__promo-kicker {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.sdg-ring__promo-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.15;
+  color: #fff;
+}
+
+.sdg-ring__promo-sub {
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .sdg-ring__label {
@@ -104,6 +148,18 @@
 
   .sdg-ring__label {
     font-size: 0.75rem;
+  }
+
+  .sdg-ring__promo-kicker {
+    font-size: 0.6rem;
+  }
+
+  .sdg-ring__promo-title {
+    font-size: 0.95rem;
+  }
+
+  .sdg-ring__promo-sub {
+    font-size: 0.68rem;
   }
 }
 

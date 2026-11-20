@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
@@ -29,6 +29,7 @@ function clearRemembered() {
 
 export function LoginPage() {
   const nav = useNavigate();
+  const location = useLocation();
   const { refresh } = useAuth();
   const remembered = React.useMemo(() => readRemembered(), []);
   const [email, setEmail] = React.useState(remembered?.email ?? "");
@@ -50,7 +51,11 @@ export function LoginPage() {
       else clearRemembered();
       setPassword("");
       await refresh();
-      nav("/");
+      const next =
+        location.state && typeof location.state === "object" && "next" in location.state
+          ? String((location.state as { next?: unknown }).next ?? "")
+          : "";
+      nav(next.startsWith("/") ? next : "/");
     } catch (err: any) {
       setPassword("");
       const code = err?.error;

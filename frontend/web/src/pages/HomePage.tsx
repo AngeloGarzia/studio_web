@@ -821,19 +821,19 @@ export function HomePage() {
         {catalogError ? <div className="mx-auto mt-4 max-w-xl rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{catalogError}</div> : null}
         <div className="mt-6">
           <RingCarousel
-            items={catalog.flatMap((lodging) => {
-              const urls = (lodging.ringImages?.length ? lodging.ringImages : lodging.coverUrl ? [lodging.coverUrl] : []).filter(
-                Boolean
-              );
-              return urls.map((url, index) => ({
-                id: `${lodging.id}-${index}`,
-                establishmentId: lodging.id,
-                name: lodging.name,
-                src: mediaUrl(url)
-              }));
-            })}
+            items={catalog.map((lodging) => ({
+              id: lodging.id,
+              establishmentId: lodging.id,
+              name: lodging.name,
+              src: lodging.coverUrl ? mediaUrl(lodging.coverUrl) : undefined,
+              kind: "lodging" as const
+            }))}
             choosingId={choosingId}
             onSelect={(id) => void (isManager ? chooseManagerLodging(id) : chooseLodging(id))}
+            onPromoSelect={() => {
+              if (isManager) navigate("/admin/etablissements#nouveau");
+              else navigate("/connexion", { state: { next: "/admin/etablissements#nouveau" } });
+            }}
           />
         </div>
         <div className="mt-2">

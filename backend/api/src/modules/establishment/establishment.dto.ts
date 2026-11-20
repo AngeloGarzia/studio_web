@@ -67,6 +67,7 @@ export const UpdateEstablishmentBodySchema = z.object({
   description: z.string().max(4000).optional(),
   coverMediaId: z.union([z.string().trim().min(1), z.null()]).optional(),
   rentalKind: RentalKindSchema.optional(),
+  isVisible: z.boolean().optional(),
   tenantName: z.string().trim().max(200).nullable().optional(),
   tenantEmail: z.union([z.string().trim().email(), z.literal("")]).nullable().optional(),
   monthlyRentCents: z.number().int().nonnegative().max(100_000_000).optional(),

@@ -118,6 +118,7 @@ export class PrismaEstablishmentRepository {
       monthlyChargesCents?: number;
       description?: string;
       coverMediaId?: string | null;
+      isVisible?: boolean;
     }
   ) {
     return this.prisma.establishment.update({ where: { id: establishmentId }, data });
@@ -125,7 +126,8 @@ export class PrismaEstablishmentRepository {
 
   listPublicCards() {
     return this.prisma.establishment.findMany({
-      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+      where: { isVisible: true },
+      orderBy: { createdAt: "asc" },
       select: {
         id: true,
         name: true,

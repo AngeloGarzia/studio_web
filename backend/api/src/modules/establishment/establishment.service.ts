@@ -127,6 +127,7 @@ export class EstablishmentService {
         ].slice(0, 8);
         return imageIds.map((id) => `/api/public/media/${id}?variant=thumb`);
       })(),
+      isVisible: row.isVisible,
       active: row.id === activeId
     }));
   }
@@ -542,7 +543,8 @@ export class EstablishmentService {
       monthlyRentCents: body.monthlyRentCents,
       monthlyChargesCents: body.monthlyChargesCents,
       description: body.description === undefined ? undefined : body.description.trim(),
-      coverMediaId
+      coverMediaId,
+      isVisible: body.isVisible
     });
     if (body.name !== undefined || body.address !== undefined || body.city !== undefined) {
       await this.establishments.savePublicIdentity(establishmentId, {
@@ -557,7 +559,8 @@ export class EstablishmentService {
       tenantName: updated.tenantName,
       tenantEmail: updated.tenantEmail,
       monthlyRentCents: updated.monthlyRentCents,
-      monthlyChargesCents: updated.monthlyChargesCents
+      monthlyChargesCents: updated.monthlyChargesCents,
+      isVisible: updated.isVisible
     };
   }
 

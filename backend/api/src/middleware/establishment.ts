@@ -10,7 +10,10 @@ async function resolveEstablishmentId(req: AuthedRequest): Promise<string> {
   if (!req.auth) {
     const picked = readPublicEstablishmentId(req);
     if (picked) {
-      const chosen = await prisma.establishment.findUnique({ where: { id: picked }, select: { id: true } });
+      const chosen = await prisma.establishment.findFirst({
+        where: { id: picked, isVisible: true },
+        select: { id: true }
+      });
       if (chosen) return chosen.id;
     }
   }
@@ -46,8 +49,11 @@ async function resolveEstablishmentId(req: AuthedRequest): Promise<string> {
   }
 
   const fallback =
-    (await prisma.establishment.findFirst({ where: { isDefault: true }, orderBy: { createdAt: "asc" } })) ??
-    (await prisma.establishment.findFirst({ orderBy: { createdAt: "asc" } }));
+    (await prisma.establishment.findFirst({
+      where: { isDefault: true, isVisible: true },
+      orderBy: { createdAt: "asc" }
+    })) ??
+    (await prisma.establishment.findFirst({ where: { isVisible: true }, orderBy: { createdAt: "asc" } }));
   if (!fallback) throw new AppError("NO_ESTABLISHMENT", 503);
   return fallback.id;
 }

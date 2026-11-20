@@ -1,5 +1,6 @@
 import React from "react";
-import { api, mediaUrl } from "../../lib/api";
+import { EditEstablishmentModal } from "../../components/EditEstablishmentModal";
+import { api } from "../../lib/api";
 import { DateField } from "../../lib/dateField";
 
 type RentalKind = "FURNISHED_TOURISM" | "UNFURNISHED_MONTHLY";
@@ -40,6 +41,7 @@ type EstablishmentRow = {
   studioName: string;
   description: string;
   coverMediaId: string | null;
+  isVisible: boolean;
   active: boolean;
 };
 
@@ -911,156 +913,6 @@ function MonthlyTenants({
   );
 }
 
-function EditEstablishmentModal({
-  establishment,
-  onClose,
-  onSaved
-}: {
-  establishment: EstablishmentRow;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [name, setName] = React.useState(establishment.name);
-  const [kind, setKind] = React.useState<RentalKind>(establishment.rentalKind);
-  const [address, setAddress] = React.useState(establishment.address ?? "");
-  const [city, setCity] = React.useState(establishment.city ?? "");
-  const [description, setDescription] = React.useState(establishment.description ?? "");
-  const [coverMediaId, setCoverMediaId] = React.useState<string | null>(establishment.coverMediaId);
-  const [images, setImages] = React.useState<Array<{ id: string; title: string | null; thumbUrl: string }>>([]);
-  const [rentInput, setRentInput] = React.useState(centsToInput(establishment.monthlyRentCents));
-  const [chargesInput, setChargesInput] = React.useState(centsToInput(establishment.monthlyChargesCents));
-  const [busy, setBusy] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    void api.adminEstablishmentImages(establishment.id).then(setImages).catch(() => setImages([]));
-  }, [establishment.id]);
-
-  const save = async () => {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setError("Indique le nom de l’établissement.");
-      return;
-    }
-    const rentCents = parseEuroToCents(rentInput);
-    const chargesCents = parseEuroToCents(chargesInput);
-    if (kind === "UNFURNISHED_MONTHLY" && (rentCents == null || chargesCents == null)) {
-      setError("Le loyer et les charges doivent être des montants valides.");
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      await api.adminUpdateEstablishment(establishment.id, {
-        name: trimmed,
-        address,
-        city,
-        description,
-        coverMediaId,
-        rentalKind: kind,
-        ...(kind === "UNFURNISHED_MONTHLY" ? { monthlyRentCents: rentCents ?? 0, monthlyChargesCents: chargesCents ?? 0 } : {})
-      });
-      onSaved();
-      onClose();
-    } catch (e: unknown) {
-      setError(messageOf(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-900/40 p-3 sm:items-center" role="presentation" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="edit-establishment-title"
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-xl"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <h2 id="edit-establishment-title" className="text-lg font-bold text-slate-900">
-            Modifier l’établissement
-          </h2>
-          <button type="button" className="sdg-btn-soft" onClick={onClose}>
-            Fermer
-          </button>
-        </div>
-        <div className="mt-4 grid grid-cols-1 gap-3">
-          <label className="text-sm font-semibold text-slate-700">
-            Nom
-            <input className="sdg-input mt-1" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} />
-          </label>
-          <label className="text-sm font-semibold text-slate-700">
-            Type
-            <select className="sdg-input mt-1" value={kind} onChange={(e) => setKind(e.target.value as RentalKind)}>
-              <option value="FURNISHED_TOURISM">Meublé de tourisme</option>
-              <option value="UNFURNISHED_MONTHLY">Logement loué vide au mois</option>
-            </select>
-          </label>
-          <label className="text-sm font-semibold text-slate-700">
-            Ville
-            <input className="sdg-input mt-1" value={city} maxLength={80} onChange={(e) => setCity(e.target.value)} />
-          </label>
-          <label className="text-sm font-semibold text-slate-700">
-            Adresse
-            <input className="sdg-input mt-1" value={address} onChange={(e) => setAddress(e.target.value)} />
-          </label>
-          <label className="text-sm font-semibold text-slate-700">
-            Descriptif
-            <textarea className="sdg-input mt-1 min-h-28" value={description} maxLength={4000} onChange={(e) => setDescription(e.target.value)} />
-            <span className="mt-1 block text-xs font-normal text-slate-500">L’accueil en montre un résumé pour les visiteurs non connectés.</span>
-          </label>
-          <div>
-            <p className="text-sm font-semibold text-slate-700">Image d’accroche</p>
-            <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-              <button
-                type="button"
-                className={`shrink-0 rounded-xl border px-3 py-2 text-xs font-semibold ${coverMediaId ? "border-slate-200 text-slate-600" : "border-water-600 bg-water-50 text-water-900"}`}
-                onClick={() => setCoverMediaId(null)}
-              >
-                Aucune
-              </button>
-              {images.map((image) => (
-                <button
-                  key={image.id}
-                  type="button"
-                  className={`h-16 w-24 shrink-0 overflow-hidden rounded-xl border-2 ${coverMediaId === image.id ? "border-water-600" : "border-transparent"}`}
-                  onClick={() => setCoverMediaId(image.id)}
-                >
-                  <img src={mediaUrl(image.thumbUrl)} alt={image.title?.trim() || "Photo du logement"} className="h-full w-full object-cover" />
-                </button>
-              ))}
-            </div>
-            {images.length === 0 ? <p className="mt-1 text-xs text-slate-500">Publie une photo dans les médias de ce logement pour l’utiliser ici.</p> : null}
-          </div>
-          {kind === "UNFURNISHED_MONTHLY" ? (
-            <>
-              <label className="text-sm font-semibold text-slate-700">
-                Loyer hors charges (€)
-                <input className="sdg-input mt-1" inputMode="decimal" value={rentInput} onChange={(e) => setRentInput(e.target.value)} />
-              </label>
-              <label className="text-sm font-semibold text-slate-700">
-                Provisions pour charges (€)
-                <input className="sdg-input mt-1" inputMode="decimal" value={chargesInput} onChange={(e) => setChargesInput(e.target.value)} />
-              </label>
-            </>
-          ) : null}
-        </div>
-        {error ? <p className="mt-3 text-sm font-semibold text-rose-700">{error}</p> : null}
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" className="sdg-btn-primary" disabled={busy} onClick={() => void save()}>
-            Enregistrer
-          </button>
-          <button type="button" className="sdg-btn-soft" disabled={busy} onClick={onClose}>
-            Annuler
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function kindLabel(kind: RentalKind) {
   return kind === "UNFURNISHED_MONTHLY" ? "Logement loué vide au mois" : "Meublé de tourisme";
 }
@@ -1307,6 +1159,17 @@ export function AdminEstablishmentsPage() {
     });
   }, [reload]);
 
+  React.useEffect(() => {
+    if (window.location.hash !== "#nouveau") return;
+    const node = document.getElementById("nouveau");
+    if (!node) return;
+    const timer = window.setTimeout(() => {
+      node.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("est-name")?.focus();
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const create = async () => {
     const trimmed = name.trim();
     if (!trimmed) {
@@ -1363,7 +1226,7 @@ export function AdminEstablishmentsPage() {
           : "Crée un établissement, puis ouvre-le pour travailler dessus."}
       </p>
 
-      <div className="sdg-card mt-6 p-4 md:p-6">
+      <div id="nouveau" className="sdg-card mt-6 scroll-mt-24 p-4 md:p-6">
         <label className="sdg-label" htmlFor="est-name">
           Nouvel établissement
         </label>
@@ -1402,6 +1265,9 @@ export function AdminEstablishmentsPage() {
               <h2 className="text-lg font-extrabold text-slate-900">{row.name}</h2>
               <p className="text-sm text-slate-600">{row.address || row.studioName}</p>
               <p className="mt-1 text-sm font-semibold text-slate-800">{kindLabel(row.rentalKind)}</p>
+              <p className={`mt-1 text-sm font-semibold ${row.isVisible ? "text-emerald-800" : "text-slate-500"}`}>
+                {row.isVisible ? "Visible sur l’accueil" : "Masqué sur l’accueil"}
+              </p>
               {row.active ? <p className="mt-1 text-sm font-bold text-water-800">En cours</p> : null}
             </div>
             <div className="flex flex-wrap gap-2 sm:justify-end">

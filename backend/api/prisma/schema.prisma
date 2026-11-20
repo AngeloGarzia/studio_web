@@ -90,6 +90,8 @@ model Establishment {
   monthlyChargesCents Int     @default(0)
   /** Établissement vu par les visiteurs non connectés en admin. */
   isDefault Boolean  @default(false)
+  /** Affiché sur l’accueil public (catalogue visiteurs). Les managers le voient toujours. */
+  isVisible Boolean  @default(true)
 
   members            EstablishmentMember[]
   activeFor          User[]                 @relation("UserActiveEstablishment")

@@ -31,7 +31,14 @@ export class EstablishmentController {
   });
 
   publicVisit = asyncHandler(async (req, res) => {
-    return res.json({ establishmentId: readPublicEstablishmentId(req) ?? null });
+    const picked = readPublicEstablishmentId(req);
+    if (!picked) return res.json({ establishmentId: null });
+    const rows = await this.establishments.listPublicCards();
+    if (!rows.some((row) => row.id === picked)) {
+      clearPublicEstablishmentCookie(res);
+      return res.json({ establishmentId: null });
+    }
+    return res.json({ establishmentId: picked });
   });
 
   choosePublic = asyncHandler(async (req, res) => {

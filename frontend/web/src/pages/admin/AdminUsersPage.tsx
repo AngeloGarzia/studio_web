@@ -1,4 +1,5 @@
 import React from "react";
+import { EditEstablishmentModal, type EditableEstablishment } from "../../components/EditEstablishmentModal";
 import { api, apiUrl, type DirectoryAccount, type DirectoryOwner, type DirectoryPayload, type DirectoryTenant } from "../../lib/api";
 import { DateField } from "../../lib/dateField";
 import type { AppRole } from "../../lib/roles";
@@ -465,6 +466,8 @@ function OwnerTile({
   const [account, setAccount] = React.useState(accountOf(owner.user?.id ?? "", users));
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
+  const [editingEstablishment, setEditingEstablishment] = React.useState<EditableEstablishment | null>(null);
+  const [openingId, setOpeningId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     setForm(owner);
@@ -503,6 +506,35 @@ function OwnerTile({
     }
   };
 
+  const openEstablishment = async (establishmentId: string) => {
+    setOpeningId(establishmentId);
+    setError(null);
+    try {
+      const rows = await api.adminEstablishments();
+      const row = rows.find((item) => item.id === establishmentId);
+      if (!row) {
+        setError("Ce logement n’a pas pu être chargé.");
+        return;
+      }
+      setEditingEstablishment({
+        id: row.id,
+        name: row.name,
+        rentalKind: row.rentalKind,
+        monthlyRentCents: row.monthlyRentCents,
+        monthlyChargesCents: row.monthlyChargesCents,
+        address: row.address,
+        city: row.city,
+        description: row.description,
+        coverMediaId: row.coverMediaId,
+        isVisible: row.isVisible
+      });
+    } catch (e: unknown) {
+      setError(messageOf(e));
+    } finally {
+      setOpeningId(null);
+    }
+  };
+
   const mandataire = `${form.firstName} ${form.lastName}`.trim();
   const title = form.isCompany && form.companyName.trim() ? form.companyName.trim() : `${form.lastName || "—"} ${form.firstName}`.trim();
 
@@ -513,11 +545,39 @@ function OwnerTile({
         <span className="mt-1 block text-lg font-extrabold text-slate-900">{title}</span>
         {form.isCompany ? <span className="block text-sm text-slate-700">Mandataire : {mandataire || "—"}</span> : null}
         <span className="block text-sm text-slate-600">
-          {owner.establishments.length === 0 ? "Aucun établissement" : owner.establishments.map((item) => item.name).join(", ")}
+          {owner.establishments.length === 0
+            ? "Aucun logement"
+            : `${owner.establishments.length} logement${owner.establishments.length > 1 ? "s" : ""}`}
           {" · "}
           {userId ? "Compte lié" : "Sans compte"}
         </span>
       </summary>
+      <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+        <p className="text-sm font-bold text-slate-800">Logements rattachés</p>
+        {owner.establishments.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-600">Aucun logement lié à ce propriétaire.</p>
+        ) : (
+          <ul className="mt-2 space-y-2">
+            {owner.establishments.map((item) => (
+              <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-3 py-2">
+                <span className="text-sm font-semibold text-slate-900">{item.name}</span>
+                <button
+                  type="button"
+                  className="sdg-btn-soft"
+                  disabled={openingId === item.id}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    void openEstablishment(item.id);
+                  }}
+                >
+                  {openingId === item.id ? "Ouverture…" : "Modifier"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
       <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className="text-sm font-semibold text-slate-700 md:col-span-2">
           <span className="flex items-center gap-2">
@@ -579,6 +639,15 @@ function OwnerTile({
       <button type="button" className="sdg-btn-primary mt-4" disabled={busy} onClick={() => void save()}>
         Enregistrer
       </button>
+      {editingEstablishment ? (
+        <EditEstablishmentModal
+          establishment={editingEstablishment}
+          onClose={() => setEditingEstablishment(null)}
+          onSaved={() => {
+            void api.adminDirectory().then(onSaved).catch((e: unknown) => setError(messageOf(e)));
+          }}
+        />
+      ) : null}
     </details>
   );
 }

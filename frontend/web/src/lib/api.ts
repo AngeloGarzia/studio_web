@@ -404,6 +404,7 @@ export const api = {
         coverMediaId: string | null;
         coverUrl: string | null;
         ringImages: string[];
+        isVisible: boolean;
         active: boolean;
       }>
     >("/admin/establishments"),
@@ -421,6 +422,7 @@ export const api = {
       description: string;
       coverMediaId: string | null;
       rentalKind: "FURNISHED_TOURISM" | "UNFURNISHED_MONTHLY";
+      isVisible: boolean;
       tenantName: string | null;
       tenantEmail: string | null;
       monthlyRentCents: number;

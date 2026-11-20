@@ -2,26 +2,46 @@ import React from "react";
 import "./RingCarousel.css";
 
 export type RingCarouselItem = {
-  /** Clé unique de la slide (ex. media id). */
   id: string;
-  /** Établissement ouvert au clic. */
-  establishmentId: string;
+  /** Présent uniquement pour un vrai logement. */
+  establishmentId?: string;
   name: string;
-  src: string;
+  src?: string;
+  kind?: "lodging" | "promo";
 };
 
 type Props = {
   items: RingCarouselItem[];
   choosingId: string | null;
   onSelect: (establishmentId: string) => void;
+  /** Clic sur une carte « Votre Studio ici ». */
+  onPromoSelect?: () => void;
 };
 
 const DEG_PER_PX = 0.35;
 const AUTO_DEG_PER_MS = 0.012;
+/** Nombre mini de faces pour une couronne lisible (logements + pubs). */
+export const RING_MIN_SLOTS = 6;
 
-export function RingCarousel({ items, choosingId, onSelect }: Props) {
-  const covers = React.useMemo(() => items.filter((it) => Boolean(it.src)), [items]);
-  const n = covers.length;
+export function RingCarousel({ items, choosingId, onSelect, onPromoSelect }: Props) {
+  const slides = React.useMemo(() => {
+    // Ordre d’entrée = ordre de création (fourni par l’API / le catalogue).
+    const real = items.filter((it) => it.kind !== "promo" && (it.src || it.establishmentId));
+    if (real.length >= RING_MIN_SLOTS) return real;
+    const slidesOut = [...real];
+    let i = 0;
+    while (slidesOut.length < RING_MIN_SLOTS) {
+      slidesOut.push({
+        id: `promo-auto-${i}`,
+        name: "Votre Studio ici",
+        kind: "promo"
+      });
+      i += 1;
+    }
+    return slidesOut;
+  }, [items]);
+
+  const n = slides.length;
   const [rotation, setRotation] = React.useState(0);
   const [paused, setPaused] = React.useState(false);
   const [reduceMotion, setReduceMotion] = React.useState(false);
@@ -56,7 +76,6 @@ export function RingCarousel({ items, choosingId, onSelect }: Props) {
     return () => cancelAnimationFrame(frame);
   }, [reduceMotion, paused, n]);
 
-  // Au moins 2 photos pour former une couronne lisible.
   if (n < 2) return null;
 
   const step = 360 / n;
@@ -113,38 +132,61 @@ export function RingCarousel({ items, choosingId, onSelect }: Props) {
         onPointerCancel={endDrag}
       >
         <div className="sdg-ring__ring" style={{ transform: `rotateY(${rotation}deg)` }}>
-          {covers.map((item, i) => (
-            <button
-              key={item.id}
-              type="button"
-              className="sdg-ring__card"
-              style={{ transform: `rotateY(${i * step}deg) translateZ(var(--sdg-ring-radius))` }}
-              disabled={choosingId === item.establishmentId}
-              aria-label={`Ouvrir ${item.name}`}
-              onClick={() => {
-                if (dragMoved.current) return;
-                onSelect(item.establishmentId);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
+          {slides.map((item, i) => {
+            const isPromo = item.kind === "promo" || !item.establishmentId;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={`sdg-ring__card${isPromo ? " sdg-ring__card--promo" : ""}`}
+                style={{ transform: `rotateY(${i * step}deg) translateZ(var(--sdg-ring-radius))` }}
+                disabled={!isPromo && choosingId === item.establishmentId}
+                aria-label={isPromo ? "Créer un logement : Votre Studio ici" : `Ouvrir ${item.name}`}
+                onClick={() => {
+                  if (dragMoved.current) return;
+                  if (isPromo) {
+                    onPromoSelect?.();
+                    return;
+                  }
+                  if (!item.establishmentId) return;
                   onSelect(item.establishmentId);
-                } else if (e.key === "ArrowRight") {
-                  e.preventDefault();
-                  setRotation((r) => r - step);
-                } else if (e.key === "ArrowLeft") {
-                  e.preventDefault();
-                  setRotation((r) => r + step);
-                }
-              }}
-            >
-              <img src={item.src} alt={`Couverture de ${item.name}`} className="sdg-ring__img" draggable={false} />
-              <span className="sdg-ring__label">{item.name}</span>
-            </button>
-          ))}
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowRight") {
+                    e.preventDefault();
+                    setRotation((r) => r - step);
+                  } else if (e.key === "ArrowLeft") {
+                    e.preventDefault();
+                    setRotation((r) => r + step);
+                  } else if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    if (isPromo) onPromoSelect?.();
+                    else if (item.establishmentId) onSelect(item.establishmentId);
+                  }
+                }}
+              >
+                {isPromo ? (
+                  <span className="sdg-ring__promo">
+                    <span className="sdg-ring__promo-kicker">Emplacement libre</span>
+                    <span className="sdg-ring__promo-title">Votre Studio ici</span>
+                    <span className="sdg-ring__promo-sub">Proposez votre logement</span>
+                  </span>
+                ) : (
+                  <>
+                    {item.src ? (
+                      <img src={item.src} alt={`Couverture de ${item.name}`} className="sdg-ring__img" draggable={false} />
+                    ) : (
+                      <span className="sdg-ring__fallback" aria-hidden />
+                    )}
+                    <span className="sdg-ring__label">{item.name}</span>
+                  </>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
-      <p className="sdg-ring__hint">Glisse pour tourner · clique pour ouvrir</p>
+      <p className="sdg-ring__hint">Glisse pour tourner · clique un logement ou « Votre Studio ici »</p>
     </div>
   );
 }
