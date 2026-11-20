@@ -84,6 +84,124 @@
     @apply text-center text-sm text-slate-600 md:text-base;
   }
 
+  /* Encart mise en relation — catalogue accueil */
+  .sdg-matchmaker {
+    --mm-ink: #0f172a;
+    --mm-muted: #475569;
+    --mm-accent: #0e7490;
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    max-width: 42rem;
+    margin-inline: auto;
+    padding: 1.35rem 1.25rem 1.2rem;
+    border-radius: 1.35rem;
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    background:
+      radial-gradient(120% 80% at 0% 0%, rgba(34, 211, 238, 0.18), transparent 55%),
+      radial-gradient(90% 70% at 100% 100%, rgba(255, 209, 102, 0.22), transparent 50%),
+      linear-gradient(160deg, rgba(255, 255, 255, 0.88), rgba(236, 254, 255, 0.62));
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.8) inset,
+      0 22px 48px rgba(14, 116, 144, 0.12);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    animation: sdg-matchmaker-in 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .sdg-matchmaker::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: linear-gradient(180deg, #22d3ee, #0e7490 55%, #f59e0b);
+  }
+
+  .sdg-matchmaker__eyebrow {
+    margin: 0 0 0.55rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--mm-accent);
+  }
+
+  .sdg-matchmaker__lead {
+    margin: 0;
+    max-width: 28ch;
+    font-family: Georgia, "Times New Roman", Times, serif;
+    font-size: clamp(1.35rem, 3.6vw, 1.85rem);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: var(--mm-ink);
+    text-wrap: balance;
+  }
+
+  .sdg-matchmaker__points {
+    margin: 1rem 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .sdg-matchmaker__points li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    font-size: 0.92rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--mm-muted);
+  }
+
+  .sdg-matchmaker__points li::before {
+    content: "";
+    flex: none;
+    width: 0.45rem;
+    height: 0.45rem;
+    margin-top: 0.4rem;
+    border-radius: 999px;
+    background: var(--mm-accent);
+    box-shadow: 0 0 0 3px rgba(14, 116, 144, 0.15);
+  }
+
+  .sdg-matchmaker__tagline {
+    margin: 1.05rem 0 0;
+    padding-top: 0.85rem;
+    border-top: 1px solid rgba(14, 116, 144, 0.14);
+    font-size: 0.84rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    line-height: 1.45;
+    color: #155e75;
+    text-wrap: balance;
+  }
+
+  .sdg-matchmaker__sep {
+    margin: 0 0.35rem;
+    font-weight: 600;
+    color: rgba(14, 116, 144, 0.45);
+  }
+
+  @keyframes sdg-matchmaker-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sdg-matchmaker {
+      animation: none;
+    }
+  }
+
   /* Menu navigation — panneau sobre */
   .sdg-nav-drawer {
     background: #ffffff;

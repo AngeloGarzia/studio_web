@@ -20,8 +20,30 @@ type Props = {
 
 const DEG_PER_PX = 0.35;
 const AUTO_DEG_PER_MS = 0.012;
+const DRAG_THRESHOLD_PX = 8;
 /** Nombre mini de faces pour une couronne lisible (logements + pubs). */
 export const RING_MIN_SLOTS = 6;
+
+function frontIndex(rotationDeg: number, count: number): number {
+  if (count <= 0) return 0;
+  const step = 360 / count;
+  // Face vers la caméra quand rotation + i*step ≈ 0 (mod 360).
+  const raw = Math.round(-rotationDeg / step);
+  return ((raw % count) + count) % count;
+}
+
+function activateItem(
+  item: RingCarouselItem,
+  onSelect: (establishmentId: string) => void,
+  onPromoSelect?: () => void
+) {
+  const isPromo = item.kind === "promo" || !item.establishmentId;
+  if (isPromo) {
+    onPromoSelect?.();
+    return;
+  }
+  onSelect(item.establishmentId!);
+}
 
 export function RingCarousel({ items, choosingId, onSelect, onPromoSelect }: Props) {
   const slides = React.useMemo(() => {
@@ -47,7 +69,11 @@ export function RingCarousel({ items, choosingId, onSelect, onPromoSelect }: Pro
   const [reduceMotion, setReduceMotion] = React.useState(false);
   const dragging = React.useRef(false);
   const dragMoved = React.useRef(false);
+  const startX = React.useRef(0);
   const lastX = React.useRef(0);
+  const activePointer = React.useRef<number | null>(null);
+  const rotationRef = React.useRef(rotation);
+  rotationRef.current = rotation;
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -79,30 +105,52 @@ export function RingCarousel({ items, choosingId, onSelect, onPromoSelect }: Pro
   if (n < 2) return null;
 
   const step = 360 / n;
+  const facing = frontIndex(rotation, n);
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
     dragging.current = true;
     dragMoved.current = false;
+    activePointer.current = e.pointerId;
+    startX.current = e.clientX;
     lastX.current = e.clientX;
     setPaused(true);
-    e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragging.current) return;
+    if (!dragging.current || activePointer.current !== e.pointerId) return;
+    const total = Math.abs(e.clientX - startX.current);
+    if (total > DRAG_THRESHOLD_PX) {
+      if (!dragMoved.current) {
+        dragMoved.current = true;
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    if (!dragMoved.current) return;
     const dx = e.clientX - lastX.current;
-    if (Math.abs(dx) > 2) dragMoved.current = true;
     lastX.current = e.clientX;
     setRotation((r) => r + dx * DEG_PER_PX);
   };
 
   const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragging.current) return;
+    if (!dragging.current || activePointer.current !== e.pointerId) return;
+    const wasDrag = dragMoved.current;
     dragging.current = false;
+    activePointer.current = null;
     try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
     } catch {
       /* ignore */
+    }
+    if (!wasDrag) {
+      const item = slides[frontIndex(rotationRef.current, n)];
+      if (item) activateItem(item, onSelect, onPromoSelect);
     }
     if (!reduceMotion) setPaused(false);
   };
@@ -134,22 +182,20 @@ export function RingCarousel({ items, choosingId, onSelect, onPromoSelect }: Pro
         <div className="sdg-ring__ring" style={{ transform: `rotateY(${rotation}deg)` }}>
           {slides.map((item, i) => {
             const isPromo = item.kind === "promo" || !item.establishmentId;
+            const isFront = i === facing;
             return (
               <button
                 key={item.id}
                 type="button"
-                className={`sdg-ring__card${isPromo ? " sdg-ring__card--promo" : ""}`}
+                tabIndex={isFront ? 0 : -1}
+                className={`sdg-ring__card${isPromo ? " sdg-ring__card--promo" : ""}${isFront ? " sdg-ring__card--front" : ""}`}
                 style={{ transform: `rotateY(${i * step}deg) translateZ(var(--sdg-ring-radius))` }}
                 disabled={!isPromo && choosingId === item.establishmentId}
                 aria-label={isPromo ? "Créer un logement : Votre Studio ici" : `Ouvrir ${item.name}`}
-                onClick={() => {
-                  if (dragMoved.current) return;
-                  if (isPromo) {
-                    onPromoSelect?.();
-                    return;
-                  }
-                  if (!item.establishmentId) return;
-                  onSelect(item.establishmentId);
+                aria-current={isFront ? "true" : undefined}
+                onClick={(e) => {
+                  // Le stage gère déjà le clic (face avant) ; évite le double déclenchement.
+                  e.preventDefault();
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "ArrowRight") {
@@ -160,8 +206,7 @@ export function RingCarousel({ items, choosingId, onSelect, onPromoSelect }: Pro
                     setRotation((r) => r + step);
                   } else if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    if (isPromo) onPromoSelect?.();
-                    else if (item.establishmentId) onSelect(item.establishmentId);
+                    activateItem(item, onSelect, onPromoSelect);
                   }
                 }}
               >
@@ -186,7 +231,7 @@ export function RingCarousel({ items, choosingId, onSelect, onPromoSelect }: Pro
           })}
         </div>
       </div>
-      <p className="sdg-ring__hint">Glisse pour tourner · clique un logement ou « Votre Studio ici »</p>
+      <p className="sdg-ring__hint">Glisse pour tourner · clique pour ouvrir la face devant</p>
     </div>
   );
 }

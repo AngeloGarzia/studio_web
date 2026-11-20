@@ -809,15 +809,36 @@ export function HomePage() {
   if ((state.status === "anon" && visitId === null) || (isManager && managerPick)) {
     return (
       <div className="sdg-container py-10">
-        <div className="flex flex-col items-center">
-          <img src="/devi.svg" alt="Dévi, la mascotte" className="mb-3 h-16 w-16 md:h-20 md:w-20" />
-          <h1 className="sdg-title sdg-title-elegant">{isManager ? "Mes établissements" : "Nos logements"}</h1>
-        </div>
-        <p className="mx-auto mt-3 max-w-xl text-center text-sm text-slate-600">
-          {isManager
-            ? "Choisis un établissement pour l’ouvrir en mode administration."
-            : "Choisis un établissement pour voir le calendrier et envoyer une demande."}
-        </p>
+        {isManager ? (
+          <>
+            <h1 className="sdg-title sdg-title-elegant">Mes établissements</h1>
+            <p className="mx-auto mt-3 max-w-xl text-center text-sm text-slate-600">
+              Choisis un établissement pour l’ouvrir en mode administration.
+            </p>
+          </>
+        ) : (
+          <aside className="sdg-matchmaker" aria-labelledby="sdg-matchmaker-title">
+            <p className="sdg-matchmaker__eyebrow">Mise en relation</p>
+            <h1 id="sdg-matchmaker-title" className="sdg-matchmaker__lead">
+              Nous mettons en relation les locataires et les propriétaires
+            </h1>
+            <ul className="sdg-matchmaker__points">
+              <li>Nous ne louons aucun bien</li>
+              <li>Nous n’encaissons pas d’argent</li>
+            </ul>
+            <p className="sdg-matchmaker__tagline">
+              100&nbsp;% direct
+              <span className="sdg-matchmaker__sep" aria-hidden>
+                ·
+              </span>
+              100&nbsp;% humain
+              <span className="sdg-matchmaker__sep" aria-hidden>
+                ·
+              </span>
+              100&nbsp;% moins cher
+            </p>
+          </aside>
+        )}
         {catalogError ? <div className="mx-auto mt-4 max-w-xl rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{catalogError}</div> : null}
         <div className="mt-6">
           <RingCarousel

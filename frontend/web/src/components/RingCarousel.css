@@ -48,6 +48,12 @@
   transform-style: preserve-3d;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  /* Les faces se chevauchent en 2D : seul le stage décide du clic (face avant). */
+  pointer-events: none;
+}
+
+.sdg-ring__card--front {
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.32);
 }
 
 .sdg-ring__card:focus-visible {
